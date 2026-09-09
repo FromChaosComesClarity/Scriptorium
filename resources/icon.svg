@@ -1,29 +1,32 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
-  <!-- Scriptorium's mark: a pen nib.
-       Drawn as paths rather than set in a typeface, so rendering never depends
-       on a font being installed. Parchment on ink, with the vent hole in the
-       rubric red the manuscript tradition used for its marginal marks.
-
-       The slit stops short of the tip on purpose: run it all the way down and
-       the nib reads as a wishbone rather than a pen. -->
+  <!-- Scriptorium's mark: a stylised S.
+       The same spine the Omarchy bar widget draws, so the app and its widget
+       are recognisably one thing. Stroked with even weight and round terminals
+       rather than built as a thick-and-thin calligraphic letterform, because
+       the bar renders this at about eighteen pixels and contrast that fine
+       turns to mud there. -->
   <defs>
-    <linearGradient id="nib" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#F4EFE6"/>
-      <stop offset="1" stop-color="#C8BFAE"/>
+    <linearGradient id="ink" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F6F2EA"/>
+      <stop offset="1" stop-color="#C7BEAD"/>
     </linearGradient>
   </defs>
 
   <rect width="1024" height="1024" rx="224" fill="#17181C"/>
 
-  <path d="M512 872
-           C 478 706, 356 508, 340 366
-           C 330 268, 398 218, 512 218
-           C 626 218, 694 268, 684 366
-           C 668 508, 546 706, 512 872 Z"
-        fill="url(#nib)"/>
+  <g transform="translate(158 150) scale(708)"
+     fill="none"
+     stroke="url(#ink)"
+     stroke-width="0.135"
+     stroke-linecap="round"
+     stroke-linejoin="round">
+    <path d="M0.735 0.235
+             C0.680 0.095, 0.330 0.075, 0.295 0.275
+             C0.265 0.450, 0.700 0.470, 0.712 0.680
+             C0.725 0.895, 0.360 0.930, 0.268 0.775"/>
+  </g>
 
-  <path d="M512 782 L512 468" stroke="#17181C" stroke-width="26" stroke-linecap="round"/>
-
-  <circle cx="512" cy="432" r="70" fill="#17181C"/>
-  <circle cx="512" cy="432" r="42" fill="#A32B26"/>
+  <!-- The rubric dot: the one spot of the manuscript red the rest of the
+       app uses for structural marks. -->
+  <circle cx="742" cy="316" r="44" fill="#A32B26"/>
 </svg>

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell, Menu } from 'electron'
+import { app, BrowserWindow, ipcMain, shell, Menu, dialog } from 'electron'
 import { join } from 'path'
 import fs from 'fs'
 import store, { dataPath } from './store.js'
@@ -8,6 +8,8 @@ import { login, forget } from './auth.js'
 import * as omarchy from './omarchy.js'
 import { fontCatalog, loadFontCss } from './fonts.js'
 import * as dictate from './dictate.js'
+import * as desktop from './desktop.js'
+import { writeNote, writeAllZip, suggestedName } from './export.js'
 
 let win = null
 const sync = new Sync()
@@ -63,6 +65,11 @@ function createWindow() {
 
   if (bounds.maximized) win.maximize()
   win.on('ready-to-show', () => win.show())
+
+  // Zoom has to be set on a live page, not in webPreferences.
+  win.webContents.on('did-finish-load', () => {
+    win.webContents.setZoomFactor(store.get('uiScale') || 1)
+  })
 
   const remember = () => {
     if (!win || win.isDestroyed() || win.isMinimized()) return
@@ -175,6 +182,65 @@ ipcMain.handle('settings:set', (_e, key, value) => { store.set(key, value); retu
 ipcMain.handle('omarchy:style', () => omarchy.currentStyle())
 ipcMain.handle('fonts:catalog', () => fontCatalog())
 ipcMain.handle('fonts:load', (_e, family) => loadFontCss(family))
+
+// ── export ──────────────────────────────────────────────────────────────────
+ipcMain.handle('export:note', async (_e, id) => {
+  const note = sync.get(id)
+  if (!note) return { error: 'That note is not loaded.' }
+
+  const { canceled, filePath } = await dialog.showSaveDialog(win, {
+    title: 'Export note',
+    defaultPath: suggestedName(note.content),
+    filters: [{ name: 'Markdown', extensions: ['md'] }]
+  })
+  if (canceled || !filePath) return { canceled: true }
+
+  try {
+    writeNote(filePath, note.content)
+    return { ok: true, filePath }
+  } catch (e) {
+    return { error: String((e && e.message) || e) }
+  }
+})
+
+ipcMain.handle('export:all', async () => {
+  const notes = sync.all()
+  if (!notes.length) return { error: 'There are no notes to export yet.' }
+
+  const stamp = new Date().toISOString().slice(0, 10)
+  const { canceled, filePath } = await dialog.showSaveDialog(win, {
+    title: 'Export all notes',
+    defaultPath: 'Scriptorium notes ' + stamp + '.zip',
+    filters: [{ name: 'ZIP archive', extensions: ['zip'] }]
+  })
+  if (canceled || !filePath) return { canceled: true }
+
+  try {
+    return { ok: true, ...writeAllZip(filePath, notes) }
+  } catch (e) {
+    return { error: String((e && e.message) || e) }
+  }
+})
+
+// ── system integration and appearance ───────────────────────────────────────
+ipcMain.handle('desktop:install', () => desktop.install())
+ipcMain.handle('desktop:installed', () => desktop.installed())
+
+ipcMain.handle('ui:scale', (_e, scale) => {
+  const value = Math.min(2, Math.max(0.5, Number(scale) || 1))
+  store.set('uiScale', value)
+  if (win && !win.isDestroyed()) win.webContents.setZoomFactor(value)
+  return value
+})
+
+ipcMain.handle('ui:spellcheck', (_e, on) => {
+  const value = !!on
+  store.set('spellcheck', value)
+  // Live, on the session, because webPreferences.spellcheck is read once at
+  // window creation and a restart to change a checkbox would be silly.
+  if (win && !win.isDestroyed()) win.webContents.session.setSpellCheckerEnabled(value)
+  return value
+})
 
 ipcMain.handle('dictate:available', () => dictate.available())
 ipcMain.handle('dictate:set', (_e, on) => dictate.setListening(on, (ev) => send('dictate:event', ev)))

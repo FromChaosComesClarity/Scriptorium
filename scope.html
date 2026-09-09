@@ -477,12 +477,11 @@
   <section>
     <div class="head"><span class="num">VII</span><h2>Where it stands</h2></div>
     <div class="col">
-      <p><strong>Both rulings came back the same session:</strong> drop images for v1, and remove the destructive features. Phases 1 and 3 through 7 are built on that basis. What is left is the one thing that needs your account.</p>
-      <ul class="plain">
-        <li><strong>A Simperium token.</strong> Still outstanding. Everything except live sync is verified; sync itself is written, boots, and connects to the right host, but it has never been pointed at a real account. Until it has, treat phase 2 as untested by me.</li>
-      </ul>
+      <p><strong>All seven phases are built, and sync is now verified against the real account:</strong> 203 live notes, pulled by the packaged AppImage.</p>
+      <p>Getting there took one real bug, worth recording because it will happen again in another Electron project here. <code>electron-vite</code> externalises runtime dependencies, so <code>import createClient from 'simperium'</code> compiled to a bare <code>require("simperium")</code> with no interop helper. node-simperium is Babel-compiled CommonJS whose factory sits on <code>.default</code>, so that bound the namespace object rather than the function, and <code>sync.start()</code> threw on its first line at every launch. It hid well: the throw landed inside a <code>whenReady</code> handler and an IPC handler, both of which swallow it into a rejected promise, so the app looked healthy while the feature was dead. The token had been captured correctly the whole time.</p>
+      <p>The lesson is narrower than "check your imports": verify interop through the path the app actually uses. A scratch <code>require()</code> proves nothing, because <code>require</code> honours <code>__esModule</code>, native ESM does not, and the bundler is a third answer again.</p>
       <p>Two notes on how the rulings were implemented. "Drop images" is implemented as <em>no way to insert one</em>, while existing <code>![alt](url)</code> syntax in a note is still parsed and written back intact, because eating it on open would be the same data loss this design exists to prevent. And "remove the destructive features" is enforced by the test suite, not just by the toolbar: the schema audit fails the build if colour, highlight, FX or font marks ever reappear.</p>
-      <p>The app is at <code>~/Documents/DEVELOPMENT/CLAUDE/Scriptorium</code> and the plugin at <code>~/Documents/DEVELOPMENT/CLAUDE/omarchy-scriptorium</code>, symlinked into your Omarchy plugins directory. Neither is committed to git: you have not asked for that yet.</p>
+      <p>The app is at <code>~/Documents/DEVELOPMENT/CLAUDE/Scriptorium</code> and the plugin at <code>~/Documents/DEVELOPMENT/CLAUDE/omarchy-scriptorium</code>, both committed. The AppImage is installed at <code>~/Apps/Scriptorium/Scriptorium.AppImage</code>, deliberately not in <code>dist/</code>: settings live beside the binary, so shipping from a build-output directory would destroy the signed-in token on the next build.</p>
     </div>
   </section>
 

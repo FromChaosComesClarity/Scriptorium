@@ -5,6 +5,10 @@
   export let current = 'Poppins'
   export let stylesMap = {}
   export let customSet = new Set()
+  // Categories injected by the caller that are not built in and are not custom
+  // saved styles. Scriptorium uses this for the live desktop theme, which is
+  // derived from Omarchy at runtime and so cannot live in styles.js.
+  export let extraCategories = {}
   export let onPick = () => {}
   export let onDelete = () => {}
   export let onDuplicate = () => {}
@@ -13,14 +17,21 @@
 
   // Category tabs = built-in groups, plus a Custom tab when the user has saved styles.
   $: customNames = [...customSet]
-  $: categories = { ...STYLE_CATEGORIES, ...(customNames.length ? { Custom: customNames } : {}) }
+  $: categories = { ...extraCategories, ...STYLE_CATEGORIES, ...(customNames.length ? { Custom: customNames } : {}) }
   $: catNames = Object.keys(categories)
 
-  let activeCat = 'Coffee'
+  let activeCat = ''
   let filter = 'all' // 'all' | 'light' | 'dark'
 
-  // Keep the active tab valid (the Custom tab disappears when the last one is deleted).
-  $: if (!catNames.includes(activeCat)) activeCat = catNames[0]
+  // Pick the tab holding the current theme, so the picker opens where you
+  // already are, and fall back to the first tab when that category has gone
+  // (the Custom tab disappears when the last saved style is deleted).
+  //
+  // Deliberately one statement: two reactive blocks both assigning activeCat
+  // can run in either order, and the wrong order strands you on tab one.
+  $: if (!catNames.includes(activeCat)) {
+    activeCat = catNames.find((c) => (categories[c] || []).includes(current)) || catNames[0]
+  }
 
   $: names = (categories[activeCat] || [])
     .filter((n) => stylesMap[n])

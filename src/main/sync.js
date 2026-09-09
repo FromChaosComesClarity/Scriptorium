@@ -139,6 +139,17 @@ export default class Sync extends EventEmitter {
   }
 
   /**
+   * Every live note WITH its content, for export.
+   *
+   * Separate from list(), which deliberately carries only what the sidebar and
+   * the Omarchy plugin need. Note bodies are the private part, so they are
+   * handed out only where something actually writes them to a file.
+   */
+  all() {
+    return [...this.notes.values()].filter((n) => !n.deleted)
+  }
+
+  /**
    * Write a note's Markdown back.
    *
    * The caller decides whether there is anything to write. See `hasEdits` in

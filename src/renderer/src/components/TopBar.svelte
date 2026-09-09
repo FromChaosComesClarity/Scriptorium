@@ -5,6 +5,9 @@
   export let editor = null
   export let onTheme = () => {}
   export let onFind = () => {}
+  export let onExport = () => {}
+  export let onSettings = () => {}
+  export let canExport = false
 
   // Re-read the editor's marks on every transaction so the buttons show state.
   let tick = 0
@@ -61,10 +64,18 @@
     <button on:click={run((c) => c.setHorizontalRule())} title="Divider">―</button>
   </div>
 
+  <div class="group">
+    <button
+      on:click={run((c) => c.unsetAllMarks().clearNodes())}
+      title="Clear formatting">Clear</button>
+  </div>
+
   <div class="spacer"></div>
 
   <div class="group">
+    <button on:click={onExport} disabled={!canExport} title="Export this note as Markdown">Export</button>
     <button on:click={onFind} title="Find (Ctrl+F)">Find</button>
     <button on:click={onTheme} title="Theme">Theme</button>
+    <button on:click={onSettings} title="Settings">⚙</button>
   </div>
 </div>

@@ -22,6 +22,11 @@ const store = new Store({
     autosaveMs: 1200,
     spellcheck: true,
 
+    // Scales the whole interface, the way EmuLatte and OAKANIZER do it: a
+    // webContents zoom factor rather than a font size, so chrome and text move
+    // together instead of the layout drifting apart.
+    uiScale: 1,
+
     // Session
     lastNoteId: '',
     windowBounds: null

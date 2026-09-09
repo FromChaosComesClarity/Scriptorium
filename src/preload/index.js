@@ -44,6 +44,18 @@ contextBridge.exposeInMainWorld('api', {
     onOmarchyChanged: (fn) => on('omarchy:changed', fn)
   },
 
+  export: {
+    note: (id) => ipcRenderer.invoke('export:note', id),
+    all: () => ipcRenderer.invoke('export:all')
+  },
+
+  system: {
+    addToMenu: () => ipcRenderer.invoke('desktop:install'),
+    inMenu: () => ipcRenderer.invoke('desktop:installed'),
+    setScale: (scale) => ipcRenderer.invoke('ui:scale', scale),
+    setSpellcheck: (on) => ipcRenderer.invoke('ui:spellcheck', on)
+  },
+
   fonts: {
     catalog: () => ipcRenderer.invoke('fonts:catalog'),
     load: (family) => ipcRenderer.invoke('fonts:load', family)

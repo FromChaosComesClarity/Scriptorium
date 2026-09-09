@@ -293,3 +293,151 @@
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
 }
+
+/* ── settings sheet ───────────────────────────────────────────────────────── */
+.scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 60;
+}
+
+.sheet {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(30rem, calc(100vw - 2rem));
+  max-height: min(38rem, calc(100vh - 3rem));
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.42);
+  z-index: 61;
+  overflow: hidden;
+}
+
+.sheet header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--rule);
+  flex: none;
+}
+
+.sheet header h2 {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.sheet .x {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: 5px;
+}
+.sheet .x:hover { color: var(--text); background: color-mix(in srgb, var(--muted) 16%, transparent); }
+
+.sheet .body {
+  overflow-y: auto;
+  padding: 0.25rem 1rem 1rem;
+  min-height: 0;
+}
+
+.sheet section {
+  padding: 1rem 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--rule) 60%, transparent);
+}
+.sheet section:last-of-type { border-bottom: none; }
+
+.sheet h3 {
+  margin: 0 0 0.3rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.sheet .hint {
+  margin: 0 0 0.6rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.sheet .hint .dot {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  margin-right: 0.4rem;
+  background: var(--muted);
+  vertical-align: baseline;
+}
+.sheet .hint .dot[data-status="connected"] { background: #4caf7d; }
+.sheet .hint .dot[data-status="connecting"],
+.sheet .hint .dot[data-status="indexing"] { background: #d6a455; }
+.sheet .hint .dot[data-status="unauthorized"] { background: #e0685f; }
+
+.sheet .row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+.sheet button:not(.x) {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 0.45rem 0.75rem;
+  font: inherit;
+  font-size: 0.84rem;
+  cursor: pointer;
+}
+.sheet button:not(.x):hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.sheet button:disabled { opacity: 0.55; cursor: default; }
+.sheet button.quiet { color: var(--muted); }
+.sheet button.quiet:hover { color: #e0685f; border-color: #e0685f; }
+
+.sheet .choices { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+.sheet .choices button.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.sheet .toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.sheet .toggle .pip {
+  width: 2rem;
+  height: 1.1rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted) 35%, transparent);
+  position: relative;
+  transition: background 0.15s ease;
+  flex: none;
+}
+.sheet .toggle .pip::after {
+  content: "";
+  position: absolute;
+  top: 0.15rem;
+  left: 0.15rem;
+  width: 0.8rem;
+  height: 0.8rem;
+  border-radius: 50%;
+  background: var(--bg);
+  transition: transform 0.15s ease;
+}
+.sheet .toggle.on .pip { background: var(--accent); }
+.sheet .toggle.on .pip::after { transform: translateX(0.9rem); }
+
+.sheet .ok { color: #4caf7d; font-size: 0.82rem; margin: 0.4rem 0 0; }
+.sheet .bad { color: #e0685f; font-size: 0.82rem; margin: 0.4rem 0 0; }

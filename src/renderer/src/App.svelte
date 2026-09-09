@@ -4,6 +4,7 @@
   import TopBar from './components/TopBar.svelte'
   import NoteList from './components/NoteList.svelte'
   import SignIn from './components/SignIn.svelte'
+  import Settings from './components/Settings.svelte'
   import FindBar from './components/FindBar.svelte'
   import ThemeChooser from './components/ThemeChooser.svelte'
   import { fromMarkdown, toMarkdown, hasEdits } from '../../shared/markdown.mjs'
@@ -18,6 +19,7 @@
   let editor = null
   let showFind = false
   let showTheme = false
+  let showSettings = false
   let syncError = ''
 
   // The Markdown this note had when it was opened or last saved. Everything
@@ -31,16 +33,48 @@
   let styleName = DEFAULT_STYLE
   let followOmarchy = true
 
+  // The desktop's own palette, mapped to a style object at runtime. It cannot
+  // live in styles.js because it changes whenever the Omarchy theme changes, so
+  // it is injected into the picker as its own category instead. Without this it
+  // was the one theme you could be looking at and not able to choose.
+  let desktop = null
+
+  $: stylesMap = desktop ? { ...STYLES, [desktop.name]: desktop.style } : STYLES
+  $: extraCategories = desktop ? { Desktop: [desktop.name] } : {}
+  $: currentStyleName = followOmarchy && desktop ? desktop.name : styleName
+
   async function applyTheme() {
-    let style = null
-    if (followOmarchy) {
-      const from = await window.api.theme.omarchy()
-      if (from) style = from.style
-    }
-    if (!style) style = STYLES[styleName] || STYLES[DEFAULT_STYLE]
+    // Read the desktop palette whether or not we are following it, so the
+    // Desktop tab is always there to pick.
+    desktop = await window.api.theme.omarchy()
+
+    const style = (followOmarchy && desktop && desktop.style)
+      || STYLES[styleName]
+      || STYLES[DEFAULT_STYLE]
+
     const scale = (await window.api.settings.get('fontScale')) || 1
     for (const f of Object.values(style.fonts || {})) ensureFontLoaded(f)
     applyStyle(style, scale)
+  }
+
+  async function pickTheme(name) {
+    if (desktop && name === desktop.name) {
+      // Choosing the desktop theme means "keep tracking it", not "freeze this
+      // copy of it", so the next `omarchy theme set` still comes through.
+      followOmarchy = true
+    } else {
+      followOmarchy = false
+      styleName = name
+      await window.api.settings.set('style', name)
+    }
+    await window.api.settings.set('followOmarchy', followOmarchy)
+    applyTheme()
+  }
+
+  async function exportNote() {
+    await flush()
+    const res = await window.api.export.note(selectedId)
+    if (res && res.error) syncError = res.error
   }
 
   // ── notes ─────────────────────────────────────────────────────────────────
@@ -162,7 +196,10 @@
   <div class="app-shell scriptorium">
     <TopBar
       {editor}
+      canExport={!!selectedId}
       onFind={() => (showFind = true)}
+      onExport={exportNote}
+      onSettings={() => (showSettings = true)}
       onTheme={() => (showTheme = !showTheme)} />
 
     <div class="body">
@@ -194,19 +231,16 @@
       </div>
     {/if}
 
+    {#if showSettings}
+      <Settings {status} onClose={() => (showSettings = false)} />
+    {/if}
+
     {#if showTheme}
       <ThemeChooser
-        current={styleName}
-        stylesMap={STYLES}
-        onPick={(name) => {
-          styleName = name
-          // Picking a theme by hand is a decision to stop following the desktop.
-          // Leaving both on would make the next Omarchy switch silently undo it.
-          followOmarchy = false
-          window.api.settings.set('style', name)
-          window.api.settings.set('followOmarchy', false)
-          applyTheme()
-        }}
+        current={currentStyleName}
+        {stylesMap}
+        {extraCategories}
+        onPick={pickTheme}
         onClose={() => (showTheme = false)} />
     {/if}
   </div>
