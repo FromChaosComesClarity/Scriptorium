@@ -17,8 +17,20 @@
 // client shows as the title.
 
 import { EventEmitter } from 'events'
-import createClient from 'simperium'
+import simperium from 'simperium'
 import WebSocket from 'ws'
+
+// node-simperium is Babel-compiled CommonJS: the factory sits on `.default`
+// behind an `__esModule` marker. Bundlers honour that marker and Node's own
+// CJS/ESM interop does not, and electron-vite externalises this dependency, so
+// the built main process ends up with a bare `require("simperium")` that yields
+// the namespace object rather than the function. Depending on who resolved the
+// import we get one or the other, so normalise instead of trusting either.
+//
+// This is not hypothetical: it shipped once. `sync.start()` threw
+// "createClient is not a function" on its first line, so the token stored
+// correctly and no note ever arrived.
+const createClient = typeof simperium === 'function' ? simperium : simperium.default
 
 // Simplenote's own Simperium application. The key is public, because every
 // open-source Simplenote client ships it. It is not ours though, so we use it
