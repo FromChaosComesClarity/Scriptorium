@@ -1,0 +1,295 @@
+/* Scriptorium's own chrome.
+ *
+ * app.css comes from LatteWrite and already styles the editor page, the
+ * ProseMirror content and the scrollbars off the theme tokens. This file adds
+ * only what a notes app needs and a word processor did not: a note list, a
+ * sync indicator, and the sign-in screen.
+ *
+ * Every colour here is a theme token, so all 93 inherited themes (and any
+ * Omarchy palette we map in) restyle this file for free.
+ */
+
+.scriptorium .body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+/* ── note list ────────────────────────────────────────────────────────────── */
+.notes {
+  width: 19rem;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid var(--rule);
+  background: color-mix(in srgb, var(--surface) 60%, transparent);
+}
+
+.notes-head {
+  display: flex;
+  gap: 0.4rem;
+  padding: 0.6rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.notes-head .search {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 0.42rem 0.6rem;
+  font: inherit;
+  font-size: 0.86rem;
+}
+.notes-head .search:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.notes-head .new {
+  flex: none;
+  width: 2rem;
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.notes-head .new:hover { color: var(--accent); border-color: var(--accent); }
+
+.notes-scroll { flex: 1; overflow-y: auto; min-height: 0; }
+
+.note {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--rule) 55%, transparent);
+  padding: 0.62rem 0.75rem;
+  cursor: pointer;
+  color: var(--text);
+  font: inherit;
+}
+.note:hover { background: color-mix(in srgb, var(--muted) 10%, transparent); }
+.note.selected { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+.note.selected .note-title { color: var(--accent); }
+
+.note-row { display: flex; align-items: baseline; gap: 0.4rem; }
+
+.note-title {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.note-when {
+  flex: none;
+  font-size: 0.7rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.note .pin { color: var(--accent); flex: none; }
+
+.note-preview {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 0.12rem;
+}
+
+.notes .empty {
+  padding: 1.5rem 1rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+/* ── sync indicator ───────────────────────────────────────────────────────── */
+.notes-foot {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.5rem 0.75rem;
+  border-top: 1px solid var(--rule);
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+
+.notes-foot .dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--muted);
+  flex: none;
+}
+.notes-foot[data-status="connected"] .dot { background: #4caf7d; }
+.notes-foot[data-status="connecting"] .dot,
+.notes-foot[data-status="indexing"] .dot { background: #d6a455; }
+.notes-foot[data-status="unauthorized"] .dot { background: #e0685f; }
+
+.notes-foot .trash {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.74rem;
+}
+.notes-foot .trash:hover { color: #e0685f; }
+
+/* ── toolbar ──────────────────────────────────────────────────────────────── */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--rule);
+  background: color-mix(in srgb, var(--surface) 75%, transparent);
+  flex: none;
+  flex-wrap: wrap;
+}
+
+.topbar .group { display: flex; gap: 0.15rem; }
+.topbar .spacer { flex: 1; }
+
+.topbar button {
+  min-width: 1.9rem;
+  height: 1.9rem;
+  padding: 0 0.45rem;
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid transparent;
+  border-radius: 5px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  line-height: 1;
+}
+.topbar button:hover { color: var(--text); border-color: var(--rule); }
+.topbar button.on { color: var(--accent); border-color: var(--accent); }
+.topbar button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* ── sign in ──────────────────────────────────────────────────────────────── */
+.signin {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  background: var(--bg);
+  color: var(--text);
+  padding: 2rem;
+}
+
+.signin-card {
+  max-width: 26rem;
+  width: 100%;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.signin-card h1 {
+  font-family: var(--font-heading);
+  font-size: 2.4rem;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.signin-card .lede { color: var(--muted); margin: 0; }
+
+.signin-card .primary {
+  background: var(--accent);
+  color: var(--bg);
+  border: none;
+  border-radius: 7px;
+  padding: 0.7rem 1rem;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.signin-card .primary:disabled { opacity: 0.6; cursor: default; }
+
+.signin-card .fine { font-size: 0.78rem; color: var(--muted); margin: 0; line-height: 1.5; }
+.signin-card .error { color: #e0685f; font-size: 0.82rem; margin: 0; }
+
+.signin-card .link {
+  background: none;
+  border: none;
+  color: var(--muted);
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8rem;
+}
+
+.signin-card .paste { display: flex; flex-direction: column; gap: 0.4rem; text-align: left; }
+.signin-card .paste label { font-size: 0.76rem; color: var(--muted); }
+.signin-card .paste input {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 0.5rem 0.6rem;
+  font: inherit;
+}
+.signin-card .paste button {
+  background: transparent;
+  border: 1px solid var(--rule);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 0.45rem;
+  cursor: pointer;
+  font: inherit;
+}
+
+/* ── toast ────────────────────────────────────────────────────────────────── */
+.toast {
+  position: fixed;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 0.6rem 0.8rem;
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  font-size: 0.82rem;
+  z-index: 50;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+.toast button {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+}
+
+/* Task lists are a checkbox and a line of text, not a bullet with a box. */
+.ProseMirror ul[data-type="taskList"] { list-style: none; padding-left: 0.2rem; }
+.ProseMirror ul[data-type="taskList"] li { display: flex; gap: 0.5rem; align-items: flex-start; }
+.ProseMirror ul[data-type="taskList"] li > label { flex: none; margin-top: 0.25rem; }
+.ProseMirror ul[data-type="taskList"] li > div { flex: 1; min-width: 0; }
+.ProseMirror ul[data-type="taskList"] input[type="checkbox"] { accent-color: var(--accent); }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}

@@ -1,0 +1,37 @@
+// A curated set of Google font families for the picker's search list. Any name
+// here (or any valid Google family typed in) is downloaded and cached on demand.
+export const GOOGLE_FONTS = [
+  'Inter', 'Roboto', 'Roboto Slab', 'Roboto Mono', 'Roboto Condensed', 'Roboto Serif',
+  'Open Sans', 'Lato', 'Montserrat', 'Poppins', 'Raleway', 'Nunito', 'Nunito Sans',
+  'Work Sans', 'Source Sans 3', 'Source Serif 4', 'Source Code Pro', 'Merriweather',
+  'Merriweather Sans', 'Playfair Display', 'Playfair Display SC', 'Lora', 'PT Serif',
+  'PT Sans', 'PT Mono', 'Noto Sans', 'Noto Serif', 'Noto Serif Display', 'Rubik',
+  'Mulish', 'Karla', 'DM Sans', 'DM Serif Display', 'DM Serif Text', 'DM Mono',
+  'Manrope', 'Space Grotesk', 'Space Mono', 'IBM Plex Sans', 'IBM Plex Serif',
+  'IBM Plex Mono', 'JetBrains Mono', 'Fira Sans', 'Fira Code', 'Fira Mono', 'Oswald',
+  'Bebas Neue', 'Anton', 'Archivo', 'Archivo Black', 'Archivo Narrow', 'Barlow',
+  'Barlow Condensed', 'Cabin', 'Quicksand', 'Josefin Sans', 'Josefin Slab', 'Comfortaa',
+  'Dosis', 'Titillium Web', 'Exo 2', 'Kanit', 'Prompt', 'Sarabun', 'Heebo', 'Assistant',
+  'Bitter', 'Domine', 'Vollkorn', 'Zilla Slab', 'Arvo', 'Crimson Text', 'Crimson Pro',
+  'EB Garamond', 'Cormorant', 'Cormorant Garamond', 'Libre Baskerville', 'Libre Franklin',
+  'Libre Caslon Text', 'Spectral', 'Newsreader', 'Frank Ruhl Libre', 'Alegreya',
+  'Alegreya Sans', 'Cardo', 'Neuton', 'Gelasio', 'Bodoni Moda', 'Abril Fatface',
+  'Yeseva One', 'Teko', 'Rajdhani', 'Saira', 'Saira Condensed', 'Chivo', 'Public Sans',
+  'Red Hat Display', 'Red Hat Text', 'Red Hat Mono', 'Sora', 'Epilogue', 'Lexend',
+  'Outfit', 'Plus Jakarta Sans', 'Figtree', 'Onest', 'Schibsted Grotesk',
+  'Instrument Sans', 'Instrument Serif', 'Bricolage Grotesque', 'Unbounded', 'Gantari',
+  'Hanken Grotesk', 'Albert Sans', 'Be Vietnam Pro', 'Readex Pro', 'Urbanist', 'Syne',
+  'Fraunces', 'Petrona', 'Piazzolla', 'Literata', 'Marcellus', 'Cinzel', 'Philosopher',
+  'Baloo 2', 'Fredoka', 'Righteous', 'Alfa Slab One', 'Ultra', 'Special Elite', 'VT323',
+  'Press Start 2P', 'Silkscreen', 'Orbitron', 'Audiowide', 'Michroma', 'Monoton',
+  'Bungee', 'Bungee Shade',
+  // Retro / computer / pixel / terminal
+  'Share Tech Mono', 'DotGothic16', 'Pixelify Sans', 'Handjet', 'Micro 5', 'Jersey 10',
+  'Jersey 25', 'Doto', 'Sixtyfour', 'Workbench', 'Nabla', 'Wallpoet', 'Iceland',
+  'Syncopate', 'Turret Road', 'Zen Dots', 'Kode Mono', 'Martian Mono', 'Major Mono Display',
+  'Nova Mono', 'Cutive Mono', 'Anonymous Pro', 'Chakra Petch', 'Tektur', 'Codystar',
+  'Faster One', 'Rationale', 'Gugi', 'Stalinist One',
+  'Dancing Script', 'Pacifico', 'Lobster', 'Caveat',
+  'Shadows Into Light', 'Indie Flower', 'Permanent Marker', 'Satisfy', 'Great Vibes',
+  'Kalam', 'Amatic SC', 'Courgette', 'Sacramento', 'Playpen Sans', 'Gloria Hallelujah'
+]

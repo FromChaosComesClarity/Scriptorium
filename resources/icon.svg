@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Scriptorium's mark: a pen nib.
+       Drawn as paths rather than set in a typeface, so rendering never depends
+       on a font being installed. Parchment on ink, with the vent hole in the
+       rubric red the manuscript tradition used for its marginal marks.
+
+       The slit stops short of the tip on purpose: run it all the way down and
+       the nib reads as a wishbone rather than a pen. -->
+  <defs>
+    <linearGradient id="nib" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F4EFE6"/>
+      <stop offset="1" stop-color="#C8BFAE"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1024" height="1024" rx="224" fill="#17181C"/>
+
+  <path d="M512 872
+           C 478 706, 356 508, 340 366
+           C 330 268, 398 218, 512 218
+           C 626 218, 694 268, 684 366
+           C 668 508, 546 706, 512 872 Z"
+        fill="url(#nib)"/>
+
+  <path d="M512 782 L512 468" stroke="#17181C" stroke-width="26" stroke-linecap="round"/>
+
+  <circle cx="512" cy="432" r="70" fill="#17181C"/>
+  <circle cx="512" cy="432" r="42" fill="#A32B26"/>
+</svg>

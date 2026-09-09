@@ -1,0 +1,563 @@
+* { box-sizing: border-box; }
+
+/* Lightness for user-picked text/highlight colours — driven by the Style's
+   light/dark mode so a colour stays legible either way (coloured text is light
+   on dark and dark on light; highlights do the opposite). Only the lightness
+   flips; the picked hue/saturation are kept. */
+:root { --fg-l: 72%; --hl-l: 34%; --hl-ink: #f4efe8; }
+:root[data-dark="false"] { --fg-l: 42%; --hl-l: 79%; --hl-ink: #1a1a1a; }
+
+html, body, #app {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+::selection { background: var(--selection); }
+
+/* Themed scrollbars */
+::-webkit-scrollbar { width: 12px; height: 12px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--muted) 45%, transparent);
+  border-radius: 8px; border: 3px solid transparent; background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--accent) 65%, transparent); background-clip: padding-box; }
+::-webkit-scrollbar-corner { background: transparent; }
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: transparent;   /* lets the .bg-fx decorative layer show through */
+  position: relative;
+  z-index: 1;
+}
+
+/* Optional decorative background (Settings > Style > Background). Fixed layer
+   behind the app-shell; effects are kept subtle so text stays readable. */
+.bg-fx { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+.bg-fx[data-bg="none"] { display: none; }
+.bg-fx[data-bg="gradient"] {
+  background:
+    radial-gradient(85% 70% at 10% 100%, color-mix(in srgb, var(--accent) 34%, transparent), transparent 60%),
+    radial-gradient(85% 70% at 95% 20%, color-mix(in srgb, var(--accent) 24%, transparent), transparent 60%);
+}
+.bg-fx[data-bg="glow"] {
+  background: radial-gradient(65% 58% at 50% 52%, color-mix(in srgb, var(--accent) 34%, transparent), transparent 72%);
+}
+.bg-fx[data-bg="vignette"] {
+  background: radial-gradient(115% 105% at 50% 46%, transparent 46%, rgba(0,0,0,0.62));
+}
+.bg-fx[data-bg="grid"] {
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--muted) 13%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--muted) 13%, transparent) 1px, transparent 1px);
+  background-size: 42px 42px;
+  -webkit-mask-image: radial-gradient(120% 100% at 50% 0%, #000 52%, transparent);
+          mask-image: radial-gradient(120% 100% at 50% 0%, #000 52%, transparent);
+}
+.bg-fx[data-bg="dots"] {
+  background-image: radial-gradient(color-mix(in srgb, var(--muted) 28%, transparent) 1.3px, transparent 1.5px);
+  background-size: 22px 22px;
+  -webkit-mask-image: radial-gradient(120% 110% at 50% 30%, #000 48%, transparent);
+          mask-image: radial-gradient(120% 110% at 50% 30%, #000 48%, transparent);
+}
+.bg-fx[data-bg="aurora"] { overflow: hidden; }
+.bg-fx[data-bg="aurora"]::before,
+.bg-fx[data-bg="aurora"]::after {
+  content: ''; position: absolute; width: 68vmax; height: 68vmax; border-radius: 50%;
+  filter: blur(60px); opacity: 0.75;
+}
+.bg-fx[data-bg="aurora"]::before {
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 62%, transparent), transparent 62%);
+  top: -12vmax; left: -6vmax; animation: aurora-a 19s ease-in-out infinite alternate;
+}
+.bg-fx[data-bg="aurora"]::after {
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 44%, transparent), transparent 62%);
+  bottom: -16vmax; right: -6vmax; animation: aurora-b 23s ease-in-out infinite alternate;
+}
+@keyframes aurora-a { from { transform: translate(0,0) scale(1); } to { transform: translate(20vmax,12vmax) scale(1.25); } }
+@keyframes aurora-b { from { transform: translate(0,0) scale(1.1); } to { transform: translate(-16vmax,-10vmax) scale(1); } }
+@media (prefers-reduced-motion: reduce) {
+  .bg-fx[data-bg="aurora"]::before, .bg-fx[data-bg="aurora"]::after { animation: none; }
+}
+
+/* ── Editor surface ─────────────────────────────────────────────────────────── */
+/* Wraps the scroller so the find bar can float over the document without
+   overlapping the top bar. */
+.editor-area {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.editor-scroll {
+  flex: 1;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+}
+
+.draw-host { position: relative; }
+
+.editor-page {
+  max-width: var(--measure);
+  margin: 0 auto;
+  padding: 6vh 2rem 40vh;
+}
+
+.ProseMirror {
+  outline: none;
+  font-family: var(--font-body);
+  font-size: calc(1.25rem * var(--font-scale));
+  line-height: 1.75;
+  color: var(--text);
+  caret-color: var(--caret);
+}
+
+.ProseMirror h1, .ProseMirror h2, .ProseMirror h3 {
+  font-family: var(--font-heading);
+  line-height: 1.2;
+  margin: 2rem 0 0.75rem;
+}
+.ProseMirror h1 { font-size: calc(2.4rem * var(--font-scale)); font-weight: 700; }
+.ProseMirror h2 { font-size: calc(1.8rem * var(--font-scale)); font-weight: 700; }
+/* h3 is the "Subtitle" — smaller than body, muted, lightly tracked */
+.ProseMirror h3 {
+  font-size: calc(0.92rem * var(--font-scale)); font-weight: 600;
+  letter-spacing: 0.04em; color: var(--muted); line-height: 1.4; margin: 0.25rem 0 1rem;
+}
+.ProseMirror p { margin: 0 0 1.1rem; }
+
+/* Tables */
+.ProseMirror table { border-collapse: collapse; table-layout: fixed; width: 100%; margin: 1.2rem 0; }
+.ProseMirror td, .ProseMirror th { border: 1px solid var(--rule); padding: 0.4rem 0.6rem; vertical-align: top; position: relative; }
+.ProseMirror th { background: color-mix(in srgb, var(--muted) 14%, transparent); font-weight: 700; text-align: left; }
+.ProseMirror td > *, .ProseMirror th > * { margin-bottom: 0; }
+.ProseMirror table[data-borderless="true"] td, .ProseMirror table[data-borderless="true"] th { border-color: transparent; }
+.ProseMirror table[data-borderless="true"] th { background: transparent; }
+.ProseMirror .selectedCell::after { content: ''; position: absolute; inset: 0; background: var(--selection); pointer-events: none; }
+
+/* Images */
+.ProseMirror .img-wrap { position: relative; display: inline-block; line-height: 0; max-width: 100%; }
+.ProseMirror .img-wrap img { max-width: 100%; height: auto; border-radius: 5px; display: block; }
+.ProseMirror .img-resize {
+  position: absolute; right: -5px; bottom: -5px; width: 14px; height: 14px;
+  background: var(--accent); border: 2px solid var(--surface); border-radius: 50%;
+  cursor: nwse-resize; opacity: 0; transition: opacity 0.15s;
+}
+.ProseMirror .img-wrap:hover .img-resize { opacity: 1; }
+.ProseMirror .img-wrap.img-selected img { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Find in document */
+.ProseMirror .find-hit {
+  background: color-mix(in srgb, var(--accent) 26%, transparent);
+  border-radius: 3px; box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.ProseMirror .find-hit.find-current {
+  background: color-mix(in srgb, var(--accent) 62%, transparent);
+  box-shadow: 0 0 0 2px var(--accent), 0 0 14px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.ProseMirror blockquote {
+  border-left: 3px solid var(--accent);
+  margin: 1.5rem 0;
+  padding-left: 1.25rem;
+  color: var(--muted);
+  font-style: italic;
+}
+.ProseMirror pre {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  font-family: var(--font-code);
+  font-size: 0.95rem;
+  overflow-x: auto;
+}
+.ProseMirror hr { border: none; border-top: 1px solid var(--rule); margin: 2rem 0; }
+.ProseMirror a { color: var(--accent); }
+/* Inline code (the `code` mark) — a subtle pill; reset for code inside a block. */
+.ProseMirror code {
+  font-family: var(--font-code); font-size: 0.88em;
+  background: color-mix(in srgb, var(--muted) 18%, transparent);
+  border: 1px solid var(--rule); border-radius: 4px; padding: 0.05em 0.35em;
+}
+.ProseMirror pre code { background: none; border: none; padding: 0; font-size: inherit; }
+.ProseMirror s { text-decoration: line-through; }
+
+/* Ink on highlights flips with the theme so it's readable on light or dark highlight colours */
+.ProseMirror mark { color: var(--hl-ink); border-radius: 3px; padding: 0 2px; box-decoration-break: clone; }
+
+/* Text special effects (FX button). Global so they also render in the picker preview.
+   Glow/neon follow the text's own colour (currentColor), combining with the colour mark. */
+.fx-glow { text-shadow: 0 0 0.4em currentColor; }
+.fx-neon { text-shadow: 0 0 1px rgba(255,255,255,0.9), 0 0 0.25em currentColor, 0 0 0.55em currentColor; }
+.fx-shadow { text-shadow: 0.05em 0.06em 0.02em rgba(0,0,0,0.45); }
+.fx-outline { -webkit-text-stroke: 0.5px var(--bg); paint-order: stroke fill; text-shadow: 0 0 1px var(--bg); }
+.fx-emboss { text-shadow: 0 1px 0 rgba(255,255,255,0.35), 0 -1px 0 rgba(0,0,0,0.42); }
+.fx-chrome {
+  background: linear-gradient(180deg, #ffffff 0%, #d3dae8 44%, #7f8da8 54%, #f0f3f9 100%);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
+}
+
+/* Placeholder */
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--muted);
+  opacity: 0.6;
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+/* Interim dictation text, before it's committed */
+.dictation-interim { color: var(--muted); opacity: 0.75; }
+
+/* ── Presentation modes ─────────────────────────────────────────────────────── */
+/* Typewriter: extra padding lets the caret sit at the vertical centre. */
+.editor-scroll.typewriter .editor-page { padding-top: 45vh; padding-bottom: 45vh; }
+
+/* Focus/reveal: applied as ProseMirror node decorations (so ProseMirror keeps
+   them). Focus dims non-caret blocks; reveal hides blocks past the frontier. */
+.ProseMirror .lw-dim { opacity: 0.28; transition: opacity 0.3s ease; }
+.ProseMirror .lw-hidden { opacity: 0; transition: opacity 0.4s ease; pointer-events: none; }
+
+/* ── PDF export (printToPDF applies @media print) ───────────────────────────── */
+@media print {
+  /* No @page margin — printToPDF paints the margin band with the window's dark
+     colour, which showed up as a dark border. Instead the whole page is one
+     uniform background and the text is inset with padding. */
+  @page { size: A4; margin: 0; }
+  html, body {
+    height: auto !important; overflow: visible !important;
+    background: var(--bg) !important; color: var(--text) !important;
+  }
+  .topbar, .pbar, .bg-fx, .findbar { display: none !important; }
+  .ProseMirror .find-hit { background: none !important; box-shadow: none !important; }
+  .app-shell, .editor-area, .editor-scroll {
+    display: block !important; height: auto !important; overflow: visible !important;
+    background: var(--bg) !important;
+  }
+  .editor-scroll.typewriter .editor-page,
+  .editor-page { max-width: none !important; margin: 0 !important; padding: 2cm 2.2cm !important; background: var(--bg) !important; }
+  .ProseMirror { font-size: 11pt !important; line-height: 1.5 !important; color: var(--text) !important; }
+  .ProseMirror h1 { font-size: 2em !important; }
+  .ProseMirror h2 { font-size: 1.5em !important; }
+  .ProseMirror h3 { font-size: 0.85em !important; }
+  .ProseMirror h1, .ProseMirror h2, .ProseMirror h3 { break-after: avoid; }
+  .ProseMirror .img-resize { display: none !important; }
+  .ProseMirror table, .ProseMirror img, .ProseMirror tr { break-inside: avoid; }
+  .ProseMirror p, .ProseMirror li, .ProseMirror blockquote { orphans: 2; widows: 2; }
+  .ProseMirror .lw-dim, .ProseMirror .lw-hidden { opacity: 1 !important; }
+
+  /* "Plain" PDF: white paper + dark ink, but keep the current Style's fonts.
+     !important is required — applyStyle() sets these vars inline on :root, and a
+     normal stylesheet rule can't override an inline declaration. */
+  :root[data-print="plain"] {
+    --bg: #ffffff !important; --surface: #ffffff !important; --text: #1a1a1a !important;
+    --muted: #555555 !important; --accent: #333333 !important; --rule: #cccccc !important;
+    --selection: transparent !important; --caret: #1a1a1a !important;
+    --fg-l: 42% !important; --hl-l: 79% !important; --hl-ink: #1a1a1a !important;
+  }
+  /* The vintage-window frame is screen chrome, not something to bake into a PDF. */
+  :root[data-skin] .editor-page { border: none !important; box-shadow: none !important; margin: 0 auto !important; background-image: none !important; }
+  :root[data-skin] .app-shell::after { display: none !important; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   SYSTEM SKINS — a Style with a `skin` sets data-skin on <html> (theme.js) and
+   these rules repaint the whole shell: square corners, a system "desktop" behind
+   a framed document window, and period-appropriate title bars / beveled buttons.
+   Colours still come from the Style's tokens, so the chrome recolours for free.
+   ══════════════════════════════════════════════════════════════════════════════ */
+:root[data-skin] *,
+:root[data-skin] *::before,
+:root[data-skin] *::after { border-radius: 0 !important; }
+
+/* Desktop layer: force the decorative layer on and clear its stock effects. */
+:root[data-skin] .bg-fx { display: block !important; z-index: 0; }
+:root[data-skin] .bg-fx::before,
+:root[data-skin] .bg-fx::after { content: none !important; display: none !important; animation: none !important; }
+
+/* The document floats on the desktop as a framed window. */
+:root[data-skin] .editor-page {
+  background: var(--surface);
+  border: 2px solid var(--rule);
+  margin: 3.2vh auto 10vh;
+  padding-top: 2.4rem;
+}
+:root[data-skin] .topbar { box-shadow: none; }
+
+/* ── MS-DOS ─────────────────────────────────────────────────────────────────── */
+:root[data-skin="dos"] .bg-fx {
+  background: #000;
+  background-image: repeating-linear-gradient(rgba(255,255,255,0.04) 0 1px, transparent 1px 3px);
+}
+:root[data-skin="dos"] .topbar { background: #000; border-bottom: 1px solid #333; text-transform: uppercase; }
+:root[data-skin="dos"] .topbar button { color: #d2d2d2; }
+:root[data-skin="dos"] .topbar button:hover,
+:root[data-skin="dos"] .topbar button.on { background: #d2d2d2; color: #000; }
+:root[data-skin="dos"] .editor-page { border-color: #333; }
+
+/* ── Commodore 64 ───────────────────────────────────────────────────────────── */
+:root[data-skin="c64"] .bg-fx { background: #7878f8; }
+:root[data-skin="c64"] .topbar { background: #0000aa; border-bottom: 2px solid #3535c7; text-transform: uppercase; letter-spacing: 1px; }
+:root[data-skin="c64"] .topbar button { color: #7c78f8; }
+:root[data-skin="c64"] .topbar button:hover,
+:root[data-skin="c64"] .topbar button.on { background: #7878f8; color: #0000aa; }
+:root[data-skin="c64"] .editor-page { border: 3px solid #aaaaff; }
+
+/* ── MacOS 1.0 — black & white, 50% dither desktop, pinstripe title, invert hover ─ */
+:root[data-skin="mac1"] .bg-fx {
+  background: #fff;
+  background-image: repeating-conic-gradient(#000 0 25%, #fff 0 50%);
+  background-size: 4px 4px;
+}
+:root[data-skin="mac1"] .topbar { background: #fff; border-bottom: 2px solid #000; }
+:root[data-skin="mac1"] .row.main { background: repeating-linear-gradient(#000 0 1px, #fff 1px 3px); border-bottom: 1px solid #000; }
+:root[data-skin="mac1"] .row.main .title-input,
+:root[data-skin="mac1"] .row.main .searchwrap { background: #fff; border: 1px solid #000; }
+:root[data-skin="mac1"] .topbar button { color: #000; border: 1px solid transparent; background: #fff; }
+:root[data-skin="mac1"] .topbar button:hover,
+:root[data-skin="mac1"] .topbar button.on { background: #000; color: #fff; }
+:root[data-skin="mac1"] .editor-page { border: 2px solid #000; box-shadow: 4px 4px 0 rgba(0,0,0,0.85); }
+
+/* ── Classic MacOS (Platinum) — pinstripe title, beveled buttons ─────────────── */
+:root[data-skin="macos"] .bg-fx { background: #7d8fa3; }
+:root[data-skin="macos"] .topbar { background: #dddddd; border-bottom: 1px solid #888; }
+:root[data-skin="macos"] .row.main { background: repeating-linear-gradient(#c6c6c6 0 1px, #ededed 1px 2px); border-bottom: 1px solid #888; }
+:root[data-skin="macos"] .topbar button { background: linear-gradient(#f6f6f6, #d2d2d2); border: 1px solid #888; color: #000; }
+:root[data-skin="macos"] .topbar button:hover { background: linear-gradient(#ffffff, #dcdcdc); }
+:root[data-skin="macos"] .topbar button.on { background: linear-gradient(#c0c0c0, #a8a8a8); }
+:root[data-skin="macos"] .editor-page { border: 1px solid #888; box-shadow: 2px 2px 7px rgba(0,0,0,0.32); }
+
+/* ── Windows 95 — teal desktop, silver bevels, navy title bar ───────────────── */
+:root[data-skin="win95"] .bg-fx { background: #008080; }
+:root[data-skin="win95"] .topbar { background: #c0c0c0; border-top: 2px solid #dfdfdf; border-bottom: 2px solid #808080; }
+:root[data-skin="win95"] .row.main { background: linear-gradient(90deg, #000080, #1084d0); }
+:root[data-skin="win95"] .row.main .title-input { color: #fff; }
+:root[data-skin="win95"] .topbar button,
+:root[data-skin="win95"] .zoom {
+  background: #c0c0c0; color: #000;
+  border: 2px solid; border-color: #dfdfdf #000 #000 #dfdfdf;
+  box-shadow: inset -1px -1px 0 #808080, inset 1px 1px 0 #fff;
+}
+:root[data-skin="win95"] .topbar button:active,
+:root[data-skin="win95"] .topbar button.on {
+  border-color: #000 #dfdfdf #dfdfdf #000; box-shadow: inset 1px 1px 0 #808080;
+}
+:root[data-skin="win95"] .editor-page { border: 2px solid; border-color: #dfdfdf #000 #000 #dfdfdf; box-shadow: inset -1px -1px 0 #808080; }
+
+/* ── Windows XP — Bliss desktop, Luna blue title ────────────────────────────── */
+:root[data-skin="xp"] .bg-fx { background: linear-gradient(#4a90d9 0%, #83b4e3 46%, #7ba24e 54%, #4e7a35 100%); }
+:root[data-skin="xp"] .topbar { background: #ece9d8; border-bottom: 1px solid #aca899; }
+:root[data-skin="xp"] .row.main { background: linear-gradient(#3a7bde, #1a52b0); }
+:root[data-skin="xp"] .row.main .title-input { color: #fff; }
+:root[data-skin="xp"] .topbar button:hover { background: rgba(47,111,214,0.18); }
+:root[data-skin="xp"] .editor-page { border: 1px solid #2f6fd6; box-shadow: 0 6px 20px rgba(0,0,0,0.3); }
+
+/* ── Amiga Workbench — blue desktop, gray beveled windows, blue title ───────── */
+:root[data-skin="amiga"] .bg-fx { background: #0055aa; }
+:root[data-skin="amiga"] .topbar { background: #a6a6a6; border-bottom: 2px solid #000; text-transform: uppercase; box-shadow: inset 0 2px 0 #fff; }
+:root[data-skin="amiga"] .row.main { background: #2b5db0; border-bottom: 2px solid #000; }
+:root[data-skin="amiga"] .row.main .title-input { color: #fff; }
+:root[data-skin="amiga"] .topbar button { background: #a6a6a6; color: #000; border: 2px solid; border-color: #fff #000 #000 #fff; }
+:root[data-skin="amiga"] .topbar button:hover,
+:root[data-skin="amiga"] .topbar button.on { background: #ff8800; color: #000; }
+:root[data-skin="amiga"] .editor-page { border: 2px solid #000; box-shadow: 3px 3px 0 rgba(0,0,0,0.6); }
+
+/* ── BeOS — teal desktop, yellow title tab ──────────────────────────────────── */
+:root[data-skin="beos"] .bg-fx { background: #3f7d8c; }
+:root[data-skin="beos"] .topbar { background: #d8d8d0; border-bottom: 1px solid #888; }
+:root[data-skin="beos"] .row.main .title-input { background: #f5c200; color: #000; border: 1px solid #000; font-weight: 700; }
+:root[data-skin="beos"] .topbar button { border: 1px solid #999; background: #e8e8e0; color: #000; }
+:root[data-skin="beos"] .topbar button:hover { background: #f5c200; }
+:root[data-skin="beos"] .editor-page { border: 1px solid #000; box-shadow: 0 0 0 1px #888, 3px 3px 8px rgba(0,0,0,0.3); }
+
+/* ── NeXTSTEP — dark hatched desktop, gray beveled chrome ────────────────────── */
+:root[data-skin="next"] .bg-fx {
+  background: #555;
+  background-image: repeating-linear-gradient(45deg, rgba(0,0,0,0.06) 0 2px, transparent 2px 4px);
+}
+:root[data-skin="next"] .topbar { background: #c8c8c8; border-bottom: 2px solid #000; box-shadow: inset 0 2px 0 #fff; }
+:root[data-skin="next"] .row.main { background: #9a9a9a; border-bottom: 2px solid #000; }
+:root[data-skin="next"] .topbar button { background: #c8c8c8; color: #000; border: 2px solid; border-color: #fff #000 #000 #fff; }
+:root[data-skin="next"] .topbar button:hover,
+:root[data-skin="next"] .topbar button.on { background: #26408b; color: #fff; }
+:root[data-skin="next"] .editor-page { border: 2px solid #000; box-shadow: 3px 3px 0 rgba(0,0,0,0.55); }
+
+/* ── ZX Spectrum — black screen, rainbow window border ──────────────────────── */
+:root[data-skin="zx"] .bg-fx { background: #000; }
+:root[data-skin="zx"] .topbar { background: #000; border-bottom: 2px solid #00d8d8; text-transform: uppercase; }
+:root[data-skin="zx"] .topbar button { color: #fff; }
+:root[data-skin="zx"] .topbar button:hover,
+:root[data-skin="zx"] .topbar button.on { background: #00d8d8; color: #000; }
+:root[data-skin="zx"] .editor-page { border: 5px solid; border-image: linear-gradient(150deg, #d80000, #d8d800 33%, #00d800 66%, #00d8d8) 1; }
+
+/* ── Atari ST (GEM) — green stipple desktop, white menu bar & windows ────────── */
+:root[data-skin="atari"] .bg-fx {
+  background: #00a000;
+  background-image: radial-gradient(rgba(0,0,0,0.18) 1px, transparent 1.4px);
+  background-size: 4px 4px;
+}
+:root[data-skin="atari"] .topbar { background: #fff; border-bottom: 2px solid #000; }
+:root[data-skin="atari"] .topbar button { color: #000; }
+:root[data-skin="atari"] .topbar button:hover,
+:root[data-skin="atari"] .topbar button.on { background: #000; color: #fff; }
+:root[data-skin="atari"] .editor-page { border: 2px solid #000; box-shadow: 3px 3px 0 rgba(0,0,0,0.4); }
+
+/* ── Amber CRT — phosphor glow + scanlines ──────────────────────────────────── */
+:root[data-skin="amber"] .bg-fx {
+  background: #0a0600;
+  background-image: repeating-linear-gradient(rgba(255,176,0,0.05) 0 1px, transparent 1px 3px);
+}
+:root[data-skin="amber"] .topbar { background: #0a0600; border-bottom: 1px solid #3a2600; }
+:root[data-skin="amber"] .topbar button { color: #ffb000; }
+:root[data-skin="amber"] .topbar button:hover,
+:root[data-skin="amber"] .topbar button.on { background: #ffb000; color: #140d00; }
+:root[data-skin="amber"] .editor-page {
+  border: 1px solid #5a3d00;
+  background-image: repeating-linear-gradient(rgba(0,0,0,0.28) 0 1px, transparent 1px 3px);
+}
+:root[data-skin="amber"] .ProseMirror { text-shadow: 0 0 6px rgba(255,176,0,0.55); }
+
+/* ── Green CRT — P1 phosphor glow + scanlines ───────────────────────────────── */
+:root[data-skin="green"] .bg-fx {
+  background: #000a00;
+  background-image: repeating-linear-gradient(rgba(55,255,106,0.05) 0 1px, transparent 1px 3px);
+}
+:root[data-skin="green"] .topbar { background: #000a00; border-bottom: 1px solid #063a16; }
+:root[data-skin="green"] .topbar button { color: #37ff6a; }
+:root[data-skin="green"] .topbar button:hover,
+:root[data-skin="green"] .topbar button.on { background: #37ff6a; color: #001400; }
+:root[data-skin="green"] .editor-page {
+  border: 1px solid #0d5024;
+  background-image: repeating-linear-gradient(rgba(0,0,0,0.28) 0 1px, transparent 1px 3px);
+}
+:root[data-skin="green"] .ProseMirror { text-shadow: 0 0 6px rgba(55,255,106,0.5); }
+
+/* ── Teletext / Ceefax — black page, colour-block header ────────────────────── */
+:root[data-skin="teletext"] .bg-fx { background: #000; }
+:root[data-skin="teletext"] .topbar { background: #000; border-bottom: 2px solid #0000d8; }
+:root[data-skin="teletext"] .row.main { background: #0000d8; }
+:root[data-skin="teletext"] .row.main .title-input { color: #ffff00; }
+:root[data-skin="teletext"] .topbar button { color: #fff; text-transform: uppercase; }
+:root[data-skin="teletext"] .topbar button:hover,
+:root[data-skin="teletext"] .topbar button.on { background: #00d8d8; color: #000; }
+:root[data-skin="teletext"] .editor-page { border: 2px solid #00d8d8; }
+
+/* ── Windows 3.1 — teal desktop, solid navy title, flat bevels ──────────────── */
+:root[data-skin="win31"] .bg-fx { background: #008080; }
+:root[data-skin="win31"] .topbar { background: #c0c0c0; border-bottom: 2px solid #808080; }
+:root[data-skin="win31"] .row.main { background: #000080; }
+:root[data-skin="win31"] .row.main .title-input { color: #fff; }
+:root[data-skin="win31"] .topbar button,
+:root[data-skin="win31"] .zoom { background: #c0c0c0; color: #000; border: 1px solid; border-color: #fff #000 #000 #fff; }
+:root[data-skin="win31"] .topbar button:active,
+:root[data-skin="win31"] .topbar button.on { border-color: #000 #fff #fff #000; }
+:root[data-skin="win31"] .editor-page { border: 2px solid; border-color: #fff #000 #000 #fff; }
+
+/* ── OS/2 Warp — blue-gray desktop, solid blue title, thick bevels ──────────── */
+:root[data-skin="os2"] .bg-fx { background: #38546e; }
+:root[data-skin="os2"] .topbar { background: #cececa; border-bottom: 2px solid #7a7a7a; box-shadow: inset 0 2px 0 #fff; }
+:root[data-skin="os2"] .row.main { background: #00337f; }
+:root[data-skin="os2"] .row.main .title-input { color: #fff; }
+:root[data-skin="os2"] .topbar button,
+:root[data-skin="os2"] .zoom { background: #cececa; color: #000; border: 2px solid; border-color: #fff #666 #666 #fff; }
+:root[data-skin="os2"] .topbar button:active,
+:root[data-skin="os2"] .topbar button.on { border-color: #666 #fff #fff #666; }
+:root[data-skin="os2"] .editor-page { border: 2px solid; border-color: #fff #444 #444 #fff; box-shadow: 2px 2px 0 rgba(0,0,0,0.4); }
+
+/* ── IBM 3270 — mainframe terminal: char-cell grid, CRT vignette, colour field
+   coding (turquoise protected / white high-intensity), and the Operator
+   Information Area status line at the bottom. ──────────────────────────────── */
+:root[data-skin="i3270"] .bg-fx {
+  background-color: #030a03;
+  background-image:
+    radial-gradient(125% 120% at 50% 42%, transparent 52%, rgba(0,0,0,0.6)),
+    repeating-linear-gradient(90deg, rgba(51,204,51,0.06) 0 1px, transparent 1px 9px),
+    repeating-linear-gradient(rgba(51,204,51,0.06) 0 1px, transparent 1px 16px);
+}
+:root[data-skin="i3270"] .topbar { background: #030a03; border-bottom: 1px solid #0d3a0d; text-transform: uppercase; }
+:root[data-skin="i3270"] .topbar button { color: #33cc33; }
+:root[data-skin="i3270"] .topbar button:hover,
+:root[data-skin="i3270"] .topbar button.on { background: #33cc33; color: #051005; }
+/* The document sits on the terminal's character cells. */
+:root[data-skin="i3270"] .editor-page {
+  border: 1px solid #0d5024;
+  background-image:
+    repeating-linear-gradient(90deg, rgba(51,204,51,0.055) 0 1px, transparent 1px 9px),
+    repeating-linear-gradient(rgba(51,204,51,0.05) 0 1px, transparent 1px 16px);
+}
+:root[data-skin="i3270"] .ProseMirror { text-shadow: 0 0 5px rgba(51,204,51,0.45); }
+/* 3279 field colours: headings = protected turquoise, bold = high-intensity white. */
+:root[data-skin="i3270"] .ProseMirror h1,
+:root[data-skin="i3270"] .ProseMirror h2,
+:root[data-skin="i3270"] .ProseMirror h3 { color: #37e0e0; text-shadow: 0 0 6px rgba(55,224,224,0.5); }
+:root[data-skin="i3270"] .ProseMirror strong,
+:root[data-skin="i3270"] .ProseMirror b { color: #eaffea; text-shadow: 0 0 6px rgba(234,255,234,0.55); }
+:root[data-skin="i3270"] .ProseMirror blockquote { color: #ffd257; border-color: #6a5a10; } /* amber caution field */
+:root[data-skin="i3270"] .ProseMirror a { color: #37e0e0; }
+/* Operator Information Area: the status line every 3270 screen has along the bottom. */
+:root[data-skin="i3270"] .app-shell::after {
+  content: "\2588 4B   SYSTEM AVAILABLE        MYDOC.PROFS        INSERT        ROW 006  COL 024";
+  position: fixed; left: 0; right: 0; bottom: 0; height: 1.55rem; z-index: 340;
+  display: flex; align-items: center; padding: 0 1.1rem; white-space: pre;
+  background: #030a03; border-top: 1px solid #1f8f1f;
+  color: #1f9f1f; font-family: var(--font-ui); font-size: 0.72rem; letter-spacing: 0.06em;
+  text-shadow: 0 0 5px rgba(51,204,51,0.4); pointer-events: none;
+}
+:root[data-skin="i3270"] .pbar { bottom: 2.6rem; } /* clear the OIA status line */
+
+/* ── Solaris CDE — Motif blue-gray, thick chiseled bevels ───────────────────── */
+:root[data-skin="cde"] .bg-fx {
+  background: #4c6b8a;
+  background-image: radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1.5px);
+  background-size: 3px 3px;
+}
+:root[data-skin="cde"] .topbar { background: #aeb6c2; border-bottom: 2px solid #4a5568; box-shadow: inset 0 2px 0 #e2e8f0, inset 0 -2px 0 #6a7688; }
+:root[data-skin="cde"] .row.main { background: #33518a; }
+:root[data-skin="cde"] .row.main .title-input { color: #fff; }
+:root[data-skin="cde"] .topbar button,
+:root[data-skin="cde"] .zoom { background: #aeb6c2; color: #000; border: 2px solid; border-color: #e2e8f0 #4a5568 #4a5568 #e2e8f0; }
+:root[data-skin="cde"] .topbar button:active,
+:root[data-skin="cde"] .topbar button.on { border-color: #4a5568 #e2e8f0 #e2e8f0 #4a5568; }
+:root[data-skin="cde"] .editor-page { border: 2px solid; border-color: #e2e8f0 #4a5568 #4a5568 #e2e8f0; box-shadow: 2px 2px 0 rgba(0,0,0,0.35); }
+
+/* ── RISC OS — gray stipple desktop, beveled cream windows ──────────────────── */
+:root[data-skin="riscos"] .bg-fx {
+  background: #909090;
+  background-image: radial-gradient(rgba(255,255,255,0.14) 1px, transparent 1.4px);
+  background-size: 3px 3px;
+}
+:root[data-skin="riscos"] .topbar { background: #d7d7c8; border-bottom: 2px solid #8a8a7c; box-shadow: inset 0 2px 0 #fff; }
+:root[data-skin="riscos"] .topbar button,
+:root[data-skin="riscos"] .zoom { background: linear-gradient(#f4f4ea, #d2d2c4); color: #000; border: 1px solid; border-color: #fff #8a8a7c #8a8a7c #fff; }
+:root[data-skin="riscos"] .topbar button:hover { background: linear-gradient(#ffffff, #dcdcce); }
+:root[data-skin="riscos"] .topbar button.on { background: #005a9c; color: #fff; }
+:root[data-skin="riscos"] .editor-page { border: 2px solid; border-color: #fff #8a8a7c #8a8a7c #fff; box-shadow: 3px 3px 7px rgba(0,0,0,0.35); }
+
+/* ── GEOS — B&W GUI, fine-dot desktop ───────────────────────────────────────── */
+:root[data-skin="geos"] .bg-fx {
+  background: #fff;
+  background-image: radial-gradient(#000 0.6px, transparent 1px);
+  background-size: 3px 3px;
+}
+:root[data-skin="geos"] .topbar { background: #fff; border-bottom: 2px solid #000; }
+:root[data-skin="geos"] .row.main { background: #000; }
+:root[data-skin="geos"] .row.main .title-input { color: #fff; }
+:root[data-skin="geos"] .topbar button { color: #000; }
+:root[data-skin="geos"] .topbar button:hover,
+:root[data-skin="geos"] .topbar button.on { background: #000; color: #fff; }
+:root[data-skin="geos"] .editor-page { border: 2px solid #000; box-shadow: 4px 4px 0 rgba(0,0,0,0.85); }

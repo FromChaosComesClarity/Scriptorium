@@ -1,0 +1,493 @@
+<title>Scriptorium Scope</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --ground:   #EFEFEC;
+    --surface:  #FBFAF8;
+    --sunk:     #E7E7E2;
+    --ink:      #1A1A1C;
+    --muted:    #6C6660;
+    --rule:     #D8D6D0;
+    --rubric:   #A32B26;
+    --ok:       #2F6B4F;
+    --warn:     #8A6320;
+    --stop:     #9B2C20;
+    --link:     #2E4B6B;
+
+    --f-display: "Spectral", Georgia, "Times New Roman", serif;
+    --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+    --measure: 68ch;
+    --pad: clamp(1.1rem, 4vw, 2.75rem);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:  #16171A;
+      --surface: #1D1F23;
+      --sunk:    #121316;
+      --ink:     #E8E6E1;
+      --muted:   #9A938C;
+      --rule:    #2F3238;
+      --rubric:  #D9736A;
+      --ok:      #6FBF95;
+      --warn:    #D6A455;
+      --stop:    #E8635A;
+      --link:    #8FB3D9;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:  #16171A;
+    --surface: #1D1F23;
+    --sunk:    #121316;
+    --ink:     #E8E6E1;
+    --muted:   #9A938C;
+    --rule:    #2F3238;
+    --rubric:  #D9736A;
+    --ok:      #6FBF95;
+    --warn:    #D6A455;
+    --stop:    #E8635A;
+    --link:    #8FB3D9;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--f-body);
+    font-size: 16px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 78rem; margin: 0 auto; padding: var(--pad); }
+  .col  { max-width: var(--measure); }
+
+  /* ── masthead ─────────────────────────────────────────────── */
+  .mast { padding-bottom: 1.5rem; border-bottom: 2px solid var(--ink); }
+  .eyebrow {
+    font-family: var(--f-mono); font-size: .72rem; font-weight: 500;
+    letter-spacing: .14em; text-transform: uppercase; color: var(--muted);
+    display: flex; flex-wrap: wrap; gap: .5rem 1.1rem; margin-bottom: 1.1rem;
+  }
+  .eyebrow b { color: var(--rubric); font-weight: 500; }
+  h1 {
+    font-family: var(--f-display); font-weight: 600;
+    font-size: clamp(2.4rem, 7vw, 4rem); line-height: 1.02;
+    letter-spacing: -.02em; margin: 0 0 .55rem; text-wrap: balance;
+  }
+  .standfirst {
+    font-family: var(--f-display); font-size: clamp(1.05rem, 2.4vw, 1.3rem);
+    line-height: 1.5; color: var(--muted); margin: 0; max-width: 54ch;
+    text-wrap: pretty;
+  }
+
+  /* ── sections with manuscript rubric marks ────────────────── */
+  section { margin-top: 3.25rem; }
+  .head { display: flex; align-items: baseline; gap: .85rem; margin-bottom: 1.1rem; }
+  .num {
+    font-family: var(--f-mono); font-size: .78rem; font-weight: 500;
+    color: var(--rubric); letter-spacing: .08em; flex: none;
+    padding-top: .35rem; min-width: 2.4ch;
+  }
+  h2 {
+    font-family: var(--f-display); font-weight: 600;
+    font-size: clamp(1.4rem, 3.4vw, 1.85rem); line-height: 1.2;
+    letter-spacing: -.01em; margin: 0; text-wrap: balance;
+  }
+  h3 {
+    font-family: var(--f-body); font-weight: 600; font-size: .95rem;
+    letter-spacing: .01em; margin: 1.9rem 0 .5rem;
+  }
+  p { margin: 0 0 1rem; text-wrap: pretty; }
+  a { color: var(--link); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  code {
+    font-family: var(--f-mono); font-size: .855em;
+    background: var(--sunk); padding: .1em .35em; border-radius: 3px;
+  }
+  strong { font-weight: 600; }
+
+  /* ── the call ─────────────────────────────────────────────── */
+  .call {
+    margin-top: 2.5rem; background: var(--surface);
+    border-left: 3px solid var(--rubric);
+    padding: 1.5rem 1.6rem; max-width: var(--measure);
+  }
+  .call .label {
+    font-family: var(--f-mono); font-size: .7rem; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--rubric); display: block; margin-bottom: .6rem;
+  }
+  .call p:last-child { margin-bottom: 0; }
+  .call .verdict {
+    font-family: var(--f-display); font-size: 1.28rem; line-height: 1.42;
+    margin-bottom: .9rem;
+  }
+
+  /* ── status chips ─────────────────────────────────────────── */
+  .chip {
+    font-family: var(--f-mono); font-size: .68rem; font-weight: 500;
+    letter-spacing: .06em; text-transform: uppercase;
+    display: inline-flex; align-items: center; gap: .4rem;
+    white-space: nowrap;
+  }
+  .chip::before {
+    content: ""; width: .58em; height: .58em; flex: none;
+    background: currentColor;
+  }
+  .chip.ok   { color: var(--ok); }
+  .chip.warn { color: var(--warn); }
+  .chip.stop { color: var(--stop); }
+
+  /* ── tables ───────────────────────────────────────────────── */
+  .scroll { overflow-x: auto; margin: 1.25rem 0 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 34rem; font-size: .89rem; }
+  caption {
+    text-align: left; font-family: var(--f-mono); font-size: .7rem;
+    letter-spacing: .12em; text-transform: uppercase; color: var(--muted);
+    padding-bottom: .7rem;
+  }
+  th {
+    text-align: left; font-family: var(--f-mono); font-weight: 500;
+    font-size: .69rem; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--muted); padding: 0 1rem .55rem 0;
+    border-bottom: 1px solid var(--ink); vertical-align: bottom;
+  }
+  td {
+    padding: .7rem 1rem .7rem 0; border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+  }
+  td:last-child, th:last-child { padding-right: 0; }
+  tbody tr:last-child td { border-bottom: none; }
+  .mono { font-family: var(--f-mono); font-size: .84em; }
+  .num-cell { font-variant-numeric: tabular-nums; text-align: right; }
+
+  /* ── findings list ────────────────────────────────────────── */
+  .findings { display: grid; gap: 0; margin-top: 1.25rem; }
+  .finding {
+    display: grid; grid-template-columns: 11rem 1fr; gap: .25rem 1.5rem;
+    padding: 1rem 0; border-top: 1px solid var(--rule); align-items: start;
+  }
+  .finding:last-child { border-bottom: 1px solid var(--rule); }
+  .finding .what { font-family: var(--f-mono); font-size: .82rem; word-break: break-word; }
+  .finding .said { margin: 0; }
+  .finding .said em { color: var(--muted); font-style: normal; display: block; font-size: .88rem; margin-top: .2rem; }
+  @media (max-width: 34rem) {
+    .finding { grid-template-columns: 1fr; }
+  }
+
+  /* ── route cards ──────────────────────────────────────────── */
+  .routes { display: grid; gap: 1px; background: var(--rule); margin-top: 1.25rem; border: 1px solid var(--rule); }
+  @media (min-width: 48rem) { .routes { grid-template-columns: repeat(3, 1fr); } }
+  .route { background: var(--surface); padding: 1.15rem 1.2rem; }
+  .route h4 {
+    font-family: var(--f-body); font-size: .93rem; font-weight: 600;
+    margin: .5rem 0 .45rem;
+  }
+  .route p { font-size: .875rem; margin-bottom: 0; color: var(--muted); }
+  .route.pick { background: var(--ground); box-shadow: inset 3px 0 0 var(--rubric); }
+  .route.pick p { color: var(--ink); }
+
+  /* ── phases ───────────────────────────────────────────────── */
+  ol.phases { list-style: none; padding: 0; margin: 1.25rem 0 0; counter-reset: p; }
+  ol.phases li {
+    counter-increment: p; display: grid; grid-template-columns: 2.6rem 1fr;
+    gap: 1rem; padding: .95rem 0; border-top: 1px solid var(--rule);
+  }
+  ol.phases li:last-child { border-bottom: 1px solid var(--rule); }
+  ol.phases li::before {
+    content: counter(p, decimal-leading-zero);
+    font-family: var(--f-mono); font-size: .78rem; color: var(--rubric); padding-top: .18rem;
+  }
+  ol.phases b { font-weight: 600; display: block; }
+  ol.phases span { color: var(--muted); font-size: .9rem; }
+
+  ul.plain { padding-left: 1.15rem; margin: 0 0 1rem; }
+  ul.plain li { margin-bottom: .4rem; }
+
+  footer {
+    margin-top: 3.5rem; padding-top: 1.25rem; border-top: 1px solid var(--rule);
+    font-family: var(--f-mono); font-size: .72rem; color: var(--muted);
+    letter-spacing: .04em;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+  :focus-visible { outline: 2px solid var(--rubric); outline-offset: 2px; }
+</style>
+
+<div class="wrap">
+
+  <header class="mast">
+    <div class="eyebrow">
+      <span><b>Scope report</b></span>
+      <span>9 September 2026</span>
+      <span>LatteWrite 0.7.1 → Scriptorium</span>
+    </div>
+    <h1>Scriptorium</h1>
+    <p class="standfirst">A visual Markdown editor over Simplenote, built on the Tiptap core LatteWrite already ships. Can it be done, what gets reused, and the one thing that will actually hurt.</p>
+  </header>
+
+  <div class="call">
+    <span class="label">The call</span>
+    <p class="verdict">Fork LatteWrite. Keep the shell, the toolbar and the whole theming engine; replace the document model.</p>
+    <p>LatteWrite gives you roughly 80% of a beautiful Markdown editor that already exists, is yours, is GPL-3.0, and already runs on Linux and in a browser. What it does not give you is a Markdown <em>document model</em>, and that is the entire job, because a Simplenote note <em>is</em> a Markdown string. Budget the work there, not on the UI.</p>
+  </div>
+
+  <section>
+    <div class="head"><span class="num">I</span><h2>What I actually checked</h2></div>
+    <div class="col">
+      <p>Every line below was run on this machine today, not recalled. Two results changed the design.</p>
+    </div>
+
+    <div class="findings">
+      <div class="finding">
+        <div class="what">api.simperium.com</div>
+        <div>
+          <span class="chip ok">Alive</span>
+          <p class="said">Returns <code>HTTP/2 401</code> from nginx for <code>/1/chalk-bump-f49/note/index</code> with a bogus token.
+          <em>The Simplenote sync backend is up and answering for the Simplenote app ID. This is the thing that has to work, and it does.</em></p>
+        </div>
+      </div>
+      <div class="finding">
+        <div class="what">auth.simperium.com</div>
+        <div>
+          <span class="chip stop">No TCP listener</span>
+          <p class="said">DNS resolves to <code>192.0.84.248</code>, but port 443 and port 80 both time out at 25s. Confirmed twice: once sandboxed, once with the sandbox off, at your authorization.
+          <em>The classic username/password login route that every third-party client used is gone. This is the single biggest finding in the report.</em></p>
+        </div>
+      </div>
+      <div class="finding">
+        <div class="what">simperium.com/1/…</div>
+        <div>
+          <span class="chip stop">Not an API</span>
+          <p class="said">Connects in 0.46s but returns a plain nginx <code>403</code> whether or not the API key header is sent.
+          <em>That is the marketing site refusing an unknown path, not a relocated auth endpoint. Dead end, ruled out.</em></p>
+        </div>
+      </div>
+      <div class="finding">
+        <div class="what">app.simplenote.com</div>
+        <div>
+          <span class="chip warn">Live, but gated</span>
+          <p class="said">Redirects to <code>/login/</code>, serves a server-rendered page carrying <code>recaptcha/enterprise.js</code>.
+          <em>Login works, but only for a human in a real browser window. No script will ever post credentials to it. This constrains the auth design rather than blocking it.</em></p>
+        </div>
+      </div>
+      <div class="finding">
+        <div class="what">simperium (npm)</div>
+        <div>
+          <span class="chip warn">Available, unmaintained</span>
+          <p class="said">v1.1.4, last published 26 June 2022. The official Node client: WebSocket sync, buckets, change versions, diff-match-patch merge.
+          <em>Four years stale, but the protocol it speaks is the one the live server still answers. Usable; pin it and expect to read its source.</em></p>
+        </div>
+      </div>
+      <div class="finding">
+        <div class="what">Markdown importer</div>
+        <div>
+          <span class="chip stop">Does not exist</span>
+          <p class="said">Grepped LatteWrite for <code>markdown-it</code>, <code>marked</code>, <code>remark</code>, <code>commonmark</code>, <code>micromark</code>, <code>mdast</code>. Nothing. Only <code>turndown</code>, used once, in <code>src/main/export.js:45</code>, one-way HTML to MD.
+          <em>LatteWrite can write Markdown out. It has never had to read Markdown in. Section III is about this.</em></p>
+        </div>
+      </div>
+      <div class="finding">
+        <div class="what">Chromium token</div>
+        <div>
+          <span class="chip stop">Blocked, and unnecessary</span>
+          <p class="said">Reading your Chromium profile was refused by the permission classifier, its standard guard on browser credential stores.
+          <em>No workaround needed. The correct design has Scriptorium log in through its own window and read its own session, so nothing is ever lifted out of another browser.</em></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="head"><span class="num">II</span><h2>What LatteWrite hands you for free</h2></div>
+    <div class="col">
+      <p>LatteWrite 0.7.1 is Electron + <code>electron-vite</code> + Svelte 4 with a Tiptap 2 core, GPL-3.0-or-later, about 5,300 lines across <code>src/</code> and <code>web/</code>. It already builds an AppImage and a PWA from one codebase, and the PWA imports the desktop app's extension modules directly so both share one ProseMirror schema. That discipline is exactly what makes it forkable.</p>
+    </div>
+
+    <div class="scroll">
+      <table>
+        <caption>Reuse ledger</caption>
+        <thead>
+          <tr>
+            <th>Component</th>
+            <th class="num-cell">Lines</th>
+            <th>What it is</th>
+            <th>For Scriptorium</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="mono">styles.js</td>
+            <td class="num-cell">898</td>
+            <td>Themes as pure data: eight colour tokens, a heading/body/UI font trio, reading measure, caret</td>
+            <td><span class="chip ok">Take whole</span></td>
+          </tr>
+          <tr>
+            <td class="mono">theme.js</td>
+            <td class="num-cell">30</td>
+            <td>Applies a style as CSS variables on <code>:root</code>, plus a <code>data-skin</code> attribute that repaints the entire shell</td>
+            <td><span class="chip ok">Take whole</span></td>
+          </tr>
+          <tr>
+            <td class="mono">editor-extensions.js</td>
+            <td class="num-cell">380</td>
+            <td>Find-in-document, resizable images, borderless tables, text FX marks, clipboard handling</td>
+            <td><span class="chip warn">Take, trim</span></td>
+          </tr>
+          <tr>
+            <td class="mono">TopBar.svelte</td>
+            <td class="num-cell">316</td>
+            <td>The toolbar, the "Office but simpler" surface you asked for</td>
+            <td><span class="chip warn">Take, retarget</span></td>
+          </tr>
+          <tr>
+            <td class="mono">app.css</td>
+            <td class="num-cell">563</td>
+            <td>Shell chrome, editor page styling, all driven off the theme tokens</td>
+            <td><span class="chip ok">Take whole</span></td>
+          </tr>
+          <tr>
+            <td class="mono">Editor.svelte</td>
+            <td class="num-cell">62</td>
+            <td>Tiptap instantiation and extension list</td>
+            <td><span class="chip warn">Rewrite list</span></td>
+          </tr>
+          <tr>
+            <td class="mono">bundle.js</td>
+            <td class="num-cell">172</td>
+            <td><code>.latte</code> zip format: Tiptap JSON plus SHA-1 content-addressed images</td>
+            <td><span class="chip stop">Drop</span></td>
+          </tr>
+          <tr>
+            <td class="mono">drive.js, onedrive.js</td>
+            <td class="num-cell">316</td>
+            <td>Google Drive sync and a OneDrive stub</td>
+            <td><span class="chip stop">Drop</span></td>
+          </tr>
+          <tr>
+            <td class="mono">export.js</td>
+            <td class="num-cell">100</td>
+            <td>HTML, Markdown (turndown), best-effort DOCX</td>
+            <td><span class="chip warn">Keep, promote</span></td>
+          </tr>
+          <tr>
+            <td class="mono">dictate.js</td>
+            <td class="num-cell">200</td>
+            <td>Attaches to LatteDictate on port 42815 for speech-to-text</td>
+            <td><span class="chip ok">Free win</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="col">
+      <h3>The theming engine is the answer to "can we skin it"</h3>
+      <p>Yes, comprehensively. A LatteWrite style is a plain object: <code>bg</code>, <code>surface</code>, <code>text</code>, <code>muted</code>, <code>accent</code>, <code>selection</code>, <code>caret</code>, <code>rule</code>, a font trio, a measure, all applied by setting CSS variables. There is already a <code>data-skin</code> hook that repaints the whole shell to portray a vintage OS, and bundled bitmap fonts (C64, IBM VGA, Chicago) to go with it. Mapping an Omarchy theme onto that object is a small function, not a project, and it means Scriptorium can follow your system theme automatically <em>and</em> carry its own.</p>
+      <p>Dictation is an unexpected bonus: <code>src/main/dictate.js</code> already speaks to LatteDictate on port 42815 and honours the <code>?type=off</code> contract, so <kbd>Ctrl+D</kbd> dictation into notes costs you nothing but the copied file.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="head"><span class="num">III</span><h2>The hard problem, stated honestly</h2></div>
+    <div class="col">
+      <p>LatteWrite's document is Tiptap JSON in a zip. A Simplenote note is a single Markdown string in a <code>content</code> field. Scriptorium must convert <strong>Markdown → Tiptap on every note open, and Tiptap → Markdown on every keystroke-triggered save</strong>, and that round trip has to be stable. An unstable one does not merely look wrong, it <em>writes the damage back to your account</em> and syncs it to your phone.</p>
+      <p>Two distinct pieces of work fall out of that:</p>
+
+      <h3>1. Build the importer that has never existed</h3>
+      <p>Tiptap 2 has no official Markdown serializer. The realistic options are <code>tiptap-markdown</code> (0.9.0, thin and a little abandoned) or wiring ProseMirror's own <code>prosemirror-markdown</code> against the schema, which is more work and far more controllable. Given the round trip has to be lossless, I would write it against <code>prosemirror-markdown</code> with a schema defined to match Simplenote's Markdown dialect, and test it with a corpus of your real notes before it is ever allowed to save.</p>
+
+      <h3>2. Decide what happens to everything Markdown cannot express</h3>
+      <p>These LatteWrite features have <em>no</em> Markdown representation. If they stay enabled and a note is saved, they are silently destroyed:</p>
+      <ul class="plain">
+        <li>Text colour, highlight colour, and the <code>textFx</code> glow/neon marks</li>
+        <li>Per-selection font family, and text alignment</li>
+        <li>Image widths, and the borderless-table flag</li>
+        <li>Embedded images generally, because Simplenote stores text and a pasted screenshot has nowhere to live</li>
+        <li>The whole presentation-mode extension</li>
+      </ul>
+      <p>The correct answer is not a warning dialog. It is to <strong>remove those extensions from the Scriptorium schema entirely</strong>, so the toolbar only ever offers what Markdown can hold: headings, bold, italic, strikethrough, inline code, links, blockquotes, both list types, task lists, code blocks, tables, and horizontal rules. A toolbar that cannot lie is worth more than a richer one that can. Images become a link to a hosted URL, or they are out of scope for v1.</p>
+      <p>One interop detail worth getting right on day one: Simplenote only renders a note as Markdown when its <code>systemTags</code> array contains <code>markdown</code>. Scriptorium should set that tag on every note it touches, or your notes will look like raw syntax in the official mobile app.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="head"><span class="num">IV</span><h2>Login, and the host that isn't there</h2></div>
+    <div class="col">
+      <p>With <code>auth.simperium.com</code> refusing connections, a token has to come from somewhere else. Three routes, and one of them is clearly right.</p>
+    </div>
+
+    <div class="routes">
+      <div class="route">
+        <span class="chip stop">Ruled out</span>
+        <h4>Post credentials to the auth API</h4>
+        <p>The endpoint every third-party client used. Nothing is listening on either port. Not degraded, absent.</p>
+      </div>
+      <div class="route pick">
+        <span class="chip ok">Recommended</span>
+        <h4>Log in in our own window</h4>
+        <p>Open <code>app.simplenote.com</code> in a real Electron window. You type your password; reCAPTCHA sees a genuine browser and is satisfied. We then read the Simperium token out of <em>our own</em> session and hand it to the sync client. Your credentials never touch our code.</p>
+      </div>
+      <div class="route">
+        <span class="chip warn">Fallback</span>
+        <h4>Paste a token</h4>
+        <p>A settings field taking a token you obtain yourself. Ugly, but it is the escape hatch when the web app's storage shape changes under us, and it costs about twenty lines.</p>
+      </div>
+    </div>
+
+    <div class="col">
+      <p style="margin-top:1.25rem">Build both the recommended route and the fallback. The exact storage key the web app uses for the token is the one thing here I could not verify without logging in, so the first hour of that phase is confirming it in a live window. The paste field means a wrong guess is an inconvenience, never a blocker.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="head"><span class="num">V</span><h2>Wrapping the web app, as you asked</h2></div>
+    <div class="col">
+      <p>You asked me to check whether wrapping the Simplenote web app is the last resort. It splits into two very different ideas, and separating them is what produced the recommendation above.</p>
+
+      <h3>Wrapping it as the whole UI: no</h3>
+      <p>This fails on its own terms. Simplenote's web editor is a plain text surface; the visual toolbar you want does not exist in it. Getting one would mean injecting a Tiptap layer over somebody else's React application and re-deriving their DOM after every deploy Automattic ships. It is the fragile option <em>and</em> the one that gives you the least control over skinning, so the two things you asked for are precisely the two things it is worst at.</p>
+
+      <h3>Wrapping it as a login window: yes, and it rescues the project</h3>
+      <p>The useful half of your instinct. Point a real browser window at their login page for authentication only, then close it and never render it again. That is what defeats both the dead auth host and reCAPTCHA in a single move. So the web app does earn a place in the architecture, as a doorway rather than as the building.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="head"><span class="num">VI</span><h2>Build order</h2></div>
+    <div class="col">
+      <p>Sequenced so the riskiest unknown is proven before anything is built on top of it.</p>
+    </div>
+    <ol class="phases">
+      <li><div><b>Prove the round trip</b><span>Before any UI. A standalone script: real notes in, Tiptap JSON, Markdown out, diffed against the original. If this is not clean, nothing downstream matters.</span></div></li>
+      <li><div><b>Prove sync read-only</b><span>Token in hand, <code>simperium</code> pinned, pull your note index and one note's content. Confirms the 2022 client still speaks to the 2026 server.</span></div></li>
+      <li><div><b>Fork the shell</b><span>Copy LatteWrite, strip Drive/OneDrive/<code>.latte</code>/presentation, cut the extension list to the Markdown-safe set, rename to Scriptorium.</span></div></li>
+      <li><div><b>Wire the note list and editor</b><span>Sidebar of notes, tag filter, search. Autosave debounced into the Simperium bucket, with the <code>markdown</code> system tag set.</span></div></li>
+      <li><div><b>Login window and settings</b><span>The Electron auth window, the token paste fallback, and conflict handling when the same note is edited on two devices.</span></div></li>
+      <li><div><b>Theming and Omarchy bridge</b><span>Map the current Omarchy theme onto a LatteWrite style object; ship a handful of Scriptorium-native themes alongside.</span></div></li>
+      <li><div><b>The Omarchy plugin</b><span>Bar widget plus overlay, on the <code>omarchy-emulatte</code> manifest pattern: note count and sync state in the bar, a fuzzy note-search overlay, and quick-capture straight into a new note.</span></div></li>
+    </ol>
+  </section>
+
+  <section>
+    <div class="head"><span class="num">VII</span><h2>Where it stands</h2></div>
+    <div class="col">
+      <p><strong>Both rulings came back the same session:</strong> drop images for v1, and remove the destructive features. Phases 1 and 3 through 7 are built on that basis. What is left is the one thing that needs your account.</p>
+      <ul class="plain">
+        <li><strong>A Simperium token.</strong> Still outstanding. Everything except live sync is verified; sync itself is written, boots, and connects to the right host, but it has never been pointed at a real account. Until it has, treat phase 2 as untested by me.</li>
+      </ul>
+      <p>Two notes on how the rulings were implemented. "Drop images" is implemented as <em>no way to insert one</em>, while existing <code>![alt](url)</code> syntax in a note is still parsed and written back intact, because eating it on open would be the same data loss this design exists to prevent. And "remove the destructive features" is enforced by the test suite, not just by the toolbar: the schema audit fails the build if colour, highlight, FX or font marks ever reappear.</p>
+      <p>The app is at <code>~/Documents/DEVELOPMENT/CLAUDE/Scriptorium</code> and the plugin at <code>~/Documents/DEVELOPMENT/CLAUDE/omarchy-scriptorium</code>, symlinked into your Omarchy plugins directory. Neither is committed to git: you have not asked for that yet.</p>
+    </div>
+  </section>
+
+  <footer>
+    Scriptorium · findings verified on this machine, 9 September 2026 · built on LatteWrite 0.7.1, GPL-3.0-or-later
+  </footer>
+
+</div>
