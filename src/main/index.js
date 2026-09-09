@@ -9,10 +9,18 @@ import * as omarchy from './omarchy.js'
 import { fontCatalog, loadFontCss } from './fonts.js'
 import * as dictate from './dictate.js'
 import * as desktop from './desktop.js'
+import Server from './server.js'
 import { writeNote, writeAllZip, suggestedName } from './export.js'
 
 let win = null
 const sync = new Sync()
+const server = new Server(sync)
+
+// Started with --serve, the app runs with no window: the Omarchy overlay pings
+// it, starts it this way if nothing answers, and reads and writes notes over
+// the loopback API. A serving instance also stays alive when its window is
+// closed, because the overlay is still using it.
+const serving = process.argv.includes('--serve')
 
 // ── what the Omarchy plugin reads ───────────────────────────────────────────
 function publish() {
@@ -93,12 +101,27 @@ const send = (channel, payload) => {
   if (win && !win.isDestroyed()) win.webContents.send(channel, payload)
 }
 
+// Running headless there is no renderer to send to, so make one and wait for it
+// before delivering. Without this, `--note <id>` against a serving instance
+// silently does nothing.
+function ensureWindow() {
+  if (win && !win.isDestroyed()) return Promise.resolve()
+  createWindow()
+  return new Promise((resolve) => win.webContents.once('did-finish-load', resolve))
+}
+
 // ── command line, used by the Omarchy plugin ────────────────────────────────
 // `--new`, `--note <id>` and `--capture <text>` are what the bar widget and the
 // launcher overlay send. They arrive either as the first launch's argv or, when
 // the app is already up, through the single-instance hook below.
 async function handleArgs(argv) {
   const at = (flag) => argv.indexOf(flag)
+
+  // --serve on its own is not a request to show anything.
+  const wantsUi = at('--new') !== -1 || at('--note') !== -1 ||
+                  at('--capture') !== -1 || at('--open') !== -1 ||
+                  argv.length <= 1
+  if (wantsUi) await ensureWindow()
 
   if (at('--new') !== -1) {
     const id = await sync.create('')
@@ -114,7 +137,7 @@ async function handleArgs(argv) {
     if (id) send('open-note', id)
   }
 
-  if (win && !win.isDestroyed()) { win.show(); win.focus() }
+  if (wantsUi && win && !win.isDestroyed()) { win.show(); win.focus() }
 }
 
 // ── sync wiring ─────────────────────────────────────────────────────────────
@@ -254,26 +277,39 @@ if (!app.requestSingleInstanceLock()) {
 } else {
   app.on('second-instance', (_e, argv) => { handleArgs(argv) })
 
-  app.whenReady().then(() => {
+  app.whenReady().then(async () => {
     Menu.setApplicationMenu(null)
-    createWindow()
+    if (!serving) createWindow()
     startSync()
+
+    // Always on, whether or not this instance was started headless: the overlay
+    // should be able to reach a window the user opened by hand too.
+    await server.start()
 
     omarchy.watch(() => {
       if (store.get('followOmarchy')) send('omarchy:changed', omarchy.currentStyle())
     })
 
-    win.webContents.once('did-finish-load', () => handleArgs(process.argv))
+    if (win) win.webContents.once('did-finish-load', () => handleArgs(process.argv))
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()
     })
+
+    app.on('before-quit', () => server.stop())
   })
 }
 
 app.on('window-all-closed', () => {
+  // A serving instance outlives its window. Closing the editor should not take
+  // the overlay's ability to write notes down with it.
+  if (serving) {
+    win = null
+    return
+  }
   dictate.shutdown()
   sync.stop()
+  server.stop()
   // The status file outlives the app, so leave it truthful rather than stale.
   try {
     fs.mkdirSync(configDir, { recursive: true })
