@@ -117,10 +117,16 @@ function ensureWindow() {
 async function handleArgs(argv) {
   const at = (flag) => argv.indexOf(flag)
 
-  // --serve on its own is not a request to show anything.
-  const wantsUi = at('--new') !== -1 || at('--note') !== -1 ||
-                  at('--capture') !== -1 || at('--open') !== -1 ||
-                  argv.length <= 1
+  // Show a window unless this invocation was purely --serve.
+  //
+  // ⚠️ This used to test `argv.length <= 1` for the plain "just open it" case,
+  // which is wrong: a packaged Electron app never has a one-element argv. With a
+  // headless --serve instance holding the single-instance lock, every click on
+  // the app handed its argv to the running copy, which decided nothing had been
+  // asked for and did nothing at all. The app became impossible to open.
+  const uiFlag = at('--new') !== -1 || at('--note') !== -1 ||
+                 at('--capture') !== -1 || at('--open') !== -1
+  const wantsUi = uiFlag || at('--serve') === -1
   if (wantsUi) await ensureWindow()
 
   if (at('--new') !== -1) {

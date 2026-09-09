@@ -41,7 +41,11 @@ export function install() {
       'Icon=' + iconDest,
       'Categories=Office;TextEditor;',
       'Terminal=false',
-      'StartupWMClass=Scriptorium'
+      // ⚠️ Lowercase, because that is what the window actually reports.
+      // hyprctl clients shows class "scriptorium"; a capitalised value here
+      // silently fails to associate the window with this entry, so docks and
+      // task switchers show a generic icon instead of ours.
+      'StartupWMClass=scriptorium'
     ].join('\n') + '\n'
 
     fs.writeFileSync(file, entry, 'utf8')
