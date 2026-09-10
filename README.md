@@ -68,6 +68,9 @@ npm run dist:mac  # dmg, arm64;  dist:mac:zip for a zip
 `npm test` needs no account and no network. It is the gate that decides whether
 this is safe to point at real notes.
 
+Per-platform notes live in [MACOS.md](MACOS.md) and [LINUX.md](LINUX.md): what is
+specific to each, what has actually been run there, and what has not.
+
 ## macOS
 
 Built and running on Apple Silicon. Download `Scriptorium-arm64.dmg` from
