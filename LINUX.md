@@ -33,6 +33,10 @@ to `v0.1.2`; the release commit brought it in line.
 
 ## 2. Build and upload
 
+⚠️ **This file is not in the `v0.2.0` tag.** It was written after the release was
+cut, so `git checkout v0.2.0` makes it disappear from your working tree. Read it
+from `main` — or on GitHub — and keep it open while you build from the tag.
+
 ```bash
 cd ~/…/Scriptorium
 git fetch --all --tags
