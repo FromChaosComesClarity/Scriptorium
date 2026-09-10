@@ -1,41 +1,53 @@
-# Porting Scriptorium to macOS
+# Scriptorium on macOS
 
-A handoff for whoever does the Mac build, written on the Linux side by someone
-who could not run any of it. Everything below that is stated as fact was read out
-of this repository or verified on Linux. Everything that needs a Mac to confirm
-is marked **UNVERIFIED**.
+Written on the Linux side as a handoff by someone who could not run any of it,
+then rewritten on the Mac by whoever did the port. Everything below now comes
+either from this repository or from a command actually run on macOS 26.6.2,
+Apple Silicon, Node 22.22.2, Electron 34.5.8. The few things still taken on
+faith are marked **UNVERIFIED**, and section 9 lists them all in one place.
 
 Read the signing section before you build anything. It is the one that wastes a
-day if you meet it by surprise.
+day if you meet it by surprise, and it is the reason the build works.
 
 ---
 
-## 1. Where the port actually stands
+## 1. Where the port stands
 
-Scriptorium was written on Linux and has almost no platform guards. There are
-exactly two in the whole main process:
+Done and running. `npm run dist:mac` produces an ad-hoc signed
+`Scriptorium.app` and a `Scriptorium-arm64.dmg`, and the app launches from
+Finder, signs its own bundle, keeps a menu bar, and survives quit and relaunch.
+
+Scriptorium was written on Linux and arrived with exactly two platform guards.
+It now has these:
 
 | File | Guard |
 | --- | --- |
 | `src/main/paths.js:11` | `APP_HOME` branches on `darwin` |
-| `src/main/index.js:327` | `window-all-closed` does not quit on `darwin` |
+| `src/main/paths.js:33` | `configDir` branches on `darwin` (section 5.8) |
+| `src/main/index.js:15` | `IS_MAC`, used by everything below |
+| `src/main/index.js:71` | `titleBarStyle` and `trafficLightPosition` (5.2) |
+| `src/main/index.js:124` | `applyZoom`, re-centres the traffic lights (5.9) |
+| `src/main/index.js:316` | `buildMenu`, the application menu (5.1) |
+| `src/main/index.js:417` | `window-all-closed` does not tear down on `darwin` (5.10) |
+| `src/main/store.js` | `followOmarchy` defaults false on `darwin` (5.6) |
+| `src/preload/index.js` | exposes `platform` to the renderer |
+| `src/renderer/src/main.js` | sets `data-platform` and `--zoom` on `<html>` |
+| `src/renderer/.../TopBar.svelte:19` | `⌘` rather than `Ctrl+` in tooltips |
+| `src/renderer/.../Settings.svelte:8` | hides the System section (5.4) |
+| `src/renderer/src/scriptorium.css:183` | the traffic-light gap and drag regions |
 
-Both were inherited from LatteWrite rather than written for this app. Everything
-else assumes Linux. Nothing here is hard, but there is more of it than "add a
-build target".
-
-The app itself is portable in the ways that matter: sync is HTTPS and a
+The app itself was portable in the ways that mattered: sync is HTTPS and a
 WebSocket, the editor is ProseMirror in a Chromium renderer, and the settings
 store is JSON on disk. There is no Linux-only native module and `npmRebuild` is
-already off (see section 6).
+already off (see section 6.3).
 
 ---
 
 ## 2. Prerequisites on the Mac
 
-- macOS on Apple Silicon or Intel. The build config below targets `arm64`;
-  change `arch` if you need Intel.
-- Node 22 or newer. The Linux side builds on Node 22.23.2.
+- macOS on Apple Silicon or Intel. The build config targets `arm64`; change
+  `arch` if you need Intel.
+- Node 22 or newer. Built here on 22.22.2, on Linux on 22.23.2.
 - Xcode Command Line Tools, for `codesign`:
   ```bash
   xcode-select --install
@@ -43,8 +55,7 @@ already off (see section 6).
 - No Apple Developer account, certificate, or notarization is required. See
   section 3 for why, and what you get instead.
 
-Versions this repo is pinned to, which you should not change casually as part of
-a port:
+Versions this repo is pinned to, which you should not change casually:
 
 ```
 electron          ^34.5.8
@@ -66,42 +77,41 @@ not a misconfiguration, it has no ad-hoc signing feature.
 
 The fix is an `afterPack` hook that signs the assembled `.app` before it is
 packaged, which is the only moment the signature ends up inside the artifact
-rather than needing to be applied by hand. LatteWrite already solved this and the
-script is worth copying verbatim from
-`LatteWrite/scripts/afterPack.cjs`. Its shape:
+rather than needing to be applied by hand. It lives in `scripts/afterPack.cjs`,
+copied from `LatteWrite/scripts/afterPack.cjs`, and is wired up in
+`package.json` as `"afterPack": "scripts/afterPack.cjs"`.
 
-```js
-exports.default = async function afterPack(context) {
-  if (context.electronPlatformName !== 'darwin') return
-  const app = path.join(context.appOutDir,
-    `${context.packager.appInfo.productFilename}.app`)
-  if (process.platform !== 'darwin') {
-    console.log('  • ad-hoc signing skipped, codesign exists only on macOS.')
-    return
-  }
-  execFileSync('codesign', ['--force', '--deep', '--sign', '-', app],
-    { stdio: 'inherit' })
-}
+A successful build says both of these, in this order, and the order is the whole
+point — ours runs first and electron-builder then declines to do anything:
+
+```
+  • ad-hoc signing  Scriptorium.app
+Scriptorium.app: replacing existing signature
+  • skipped macOS code signing  reason=identity explicitly is set to null
 ```
 
-Wire it up in `package.json`:
+What you get:
 
-```json
-"build": {
-  "afterPack": "scripts/afterPack.cjs"
-}
+```
+$ codesign -dv dist/mac-arm64/Scriptorium.app
+Identifier=io.github.fromchaoscomesclarity.scriptorium
+CodeDirectory v=20400 flags=0x2(adhoc)
+Signature=adhoc
+TeamIdentifier=not set
+
+$ codesign --verify --deep --strict --verbose=2 dist/mac-arm64/Scriptorium.app
+...: valid on disk
+...: satisfies its Designated Requirement
 ```
 
 **If a bundle was cross-built on Linux** it cannot be signed there, because
-`codesign` is macOS-only. Two manual steps on the Mac make it run:
+`codesign` is macOS-only. `./install-on-mac.sh [path/to/Scriptorium.app]` beside
+the artifact does the two manual steps:
 
 ```bash
 xattr -cr Scriptorium.app                        # clear the download quarantine
 codesign --force --deep --sign - Scriptorium.app # ad-hoc signature
 ```
-
-Worth putting in an `install-on-mac.sh` beside the artifact so nobody has to
-remember it.
 
 ---
 
@@ -114,64 +124,58 @@ npm install
 
 npm test            # the round-trip suite. No account or network needed.
 npm run dev         # run it unpackaged first, before packaging anything
-npm run dist:mac    # after the config changes in section 5
+npm run dist:mac    # dmg;  dist:mac:zip for a zip
 ```
 
 `npm test` is the gate that decides whether this build is safe to point at a real
 account. It audits the schema, checks Markdown fidelity, and proves the round
-trip reaches a fixed point. It is pure JS and platform independent, so it should
-pass identically on macOS. **UNVERIFIED**, but there is nothing platform-specific
-in it.
+trip reaches a fixed point. It is pure JS and platform independent. It passes
+identically on macOS: 19 corpus cases, 2 of which normalise on first save.
 
-Run `npm run dev` before packaging. Almost every problem in section 5 shows up
+Run `npm run dev` before packaging. Almost everything in section 5 shows up
 there, and the packaging step is slow.
 
 ---
 
 ## 5. Code changes, file by file
 
-### 5.1 `src/main/index.js` — the menu bar. Not optional.
+### 5.1 `src/main/index.js` — the menu bar. Not optional. **Done.**
 
-Line 287:
+`Menu.setApplicationMenu(null)` removes a menu nobody wants on Linux. On macOS it
+removes the **application menu**, and a `BrowserWindow` with no menu has no ⌘Q,
+⌘C, ⌘V, ⌘X, ⌘A or ⌘Z, because those are menu accelerators rather than built-in
+behaviours. The system also stops offering its own Dictation and Emoji items.
 
-```js
-Menu.setApplicationMenu(null)
+`buildMenu()` now builds a real menu on darwin and keeps `null` everywhere else:
+`appMenu`, a File menu, then the `editMenu`, `viewMenu` and `windowMenu` roles.
+The roles matter — the system injects Start Dictation and Emoji & Symbols into an
+Edit menu it recognises, and only into one it recognises. Read back out of the
+accessibility tree on the running app:
+
+```
+Edit: Undo, Redo, Cut, Copy, Paste, Paste and Match Style, Delete, Select All,
+      Substitutions, Speech, AutoFill, Start Dictation, Emoji & Symbols
+File: New Note (⌘N), Export Note… (⇧⌘E), Export All Notes… (⇧⌥⌘E), Close Window
 ```
 
-On Linux this removes a menu nobody wants. On macOS it removes the **application
-menu**, and a `BrowserWindow` with no menu has no ⌘Q, ⌘C, ⌘V, ⌘X, ⌘A or ⌘Z,
-because those are menu accelerators rather than built-in behaviours. The system
-also stops offering its own Dictation and Emoji items in the Edit menu.
+**⌘F and ⌘S are deliberately not in the menu**, because `App.svelte` binds them
+itself and nothing should be claimed twice. **⌘N went the other way**: the menu
+owns it, and the renderer's keydown handler stands down on darwin, so one
+keypress cannot create two notes. If you add a File item later, pick a side.
 
-This is the single change most likely to be reported as "the Mac build is
-broken". Do it first.
+The export items come back to the renderer over a `menu:command` push rather
+than being done in the main process, because an export has to flush a pending
+autosave first and only the renderer knows there is one.
 
-```js
-if (process.platform === 'darwin') {
-  Menu.setApplicationMenu(Menu.buildFromTemplate([
-    { role: 'appMenu' },
-    { role: 'editMenu' },      // gives ⌘C/⌘V/⌘X/⌘A/⌘Z and the system's own
-                               // Dictation and Emoji items
-    { role: 'viewMenu' },
-    { role: 'windowMenu' }
-  ]))
-} else {
-  Menu.setApplicationMenu(null)
-}
-```
+### 5.2 `src/main/index.js` — window chrome. **Done.**
 
-Consider adding Scriptorium's own items to the File menu while you are there:
-New Note, Export Note, Export All. They exist as IPC handlers already
-(`export:note`, `export:all`, `notes:create`).
+`titleBarStyle: 'hiddenInset'` with `trafficLightPosition: { x: 15, y: 16 }`,
+matching LatteWrite. The toolbar pads its left edge clear of the lights and makes
+itself the window's drag region; the sign-in screen does the same with the ground
+around its card. Every control inside a drag region has to set
+`-webkit-app-region: no-drag` or its clicks are swallowed.
 
-### 5.2 `src/main/index.js` — window chrome
-
-The window is created with defaults, which on macOS means a standard title bar.
-LatteWrite used `titleBarStyle: 'hiddenInset'` to keep the traffic lights while
-losing the bar. Cosmetic, but it is what makes an Electron app stop looking like
-a port. Your call.
-
-### 5.3 `src/main/index.js` — where the binary is
+### 5.3 `src/main/index.js` — where the binary is. **Measured, left alone.**
 
 `status.json` advertises a command that other things use to relaunch the app.
 It is produced by `launchCommand()`:
@@ -183,20 +187,26 @@ function launchCommand() {
 }
 ```
 
-The `app.isPackaged` check is load-bearing and was added after a real bug. It
-used to be `process.env.APPIMAGE || process.execPath`, and in an unpackaged dev
-run `process.execPath` is the raw Electron binary. That got written into
-`status.json`, the Omarchy plugin's middle-click launched it, and Electron
-opened its own default welcome window, which looks exactly like the app being
-broken. An unpackaged run now advertises no command at all, and every consumer
-already treats an empty command as "not installed here".
+The `app.isPackaged` check is load-bearing and was added after a real bug on the
+Linux side: in an unpackaged dev run `process.execPath` is the raw Electron
+binary, and advertising it made the Omarchy plugin's middle-click open Electron's
+own welcome window. An unpackaged run now advertises no command at all, and every
+consumer already treats an empty command as "not installed here". **That applies
+to a macOS dev run too**, and it is why `npm run dev` writes an empty `command`.
 
-**On macOS this needs checking.** For a packaged `.app`, `process.execPath` is
-the inner `Contents/MacOS/Scriptorium` executable, not the bundle. Launching the
-inner executable directly usually works but bypasses `LaunchServices`, so it can
-behave differently over document handling, activation and the Dock.
+What a packaged macOS launch actually writes, read out of `status.json` after
+opening the `.app` from Finder:
 
-If that turns out to matter, derive the bundle path instead:
+```
+/Applications/Scriptorium.app/Contents/MacOS/Scriptorium
+```
+
+So it is the **inner executable**, not the bundle — the case the Linux side
+flagged. Launching it directly works but bypasses `LaunchServices`, so it can
+behave differently over document handling, activation and the Dock. Left as is,
+because nothing on macOS consumes this file: the Omarchy plugin is Linux-only.
+
+If something ever does, derive the bundle path instead:
 
 ```js
 if (app.isPackaged && process.platform === 'darwin') {
@@ -205,91 +215,112 @@ if (app.isPackaged && process.platform === 'darwin') {
 }
 ```
 
-and have consumers use `open -a <bundle> --args ...`. Nothing on macOS consumes
-this today, since the Omarchy plugin is Linux-only, so it is only worth doing if
-something starts to. **UNVERIFIED.**
+and have consumers use `open -a <bundle> --args ...`.
 
-### 5.4 `src/main/desktop.js` — Linux only, already guarded
+### 5.4 `src/main/desktop.js` — Linux only. **Hidden on darwin.**
 
 `install()` returns `{ error: 'Only available when running the packaged
-AppImage.' }` when `process.env.APPIMAGE` is unset, which is always on macOS. So
-it fails safely.
+AppImage.' }` when `process.env.APPIMAGE` is unset, which is always on macOS, so
+it fails safely. But the Settings sheet used to show an **"Add to applications
+menu"** button that could only ever produce that error. On macOS the `.app`
+bundle *is* the menu entry, so the whole `system` section is now dropped from
+`SECTIONS` on darwin and `inMenu()` is not called. The sheet shows Account,
+Editing, Appearance, Backup.
 
-But the Settings sheet still shows an **"Add to applications menu"** button that
-can only ever produce that error. On macOS the `.app` bundle *is* the menu entry,
-so the whole section should be hidden:
+### 5.5 `src/main/dictate.js` — Linux only. **Nothing to do.**
 
-- `src/renderer/src/components/Settings.svelte`, the `system` section.
-- The renderer has no platform flag today. Add one to the preload
-  (`process.platform` is available there) and hide the section on `darwin`.
+`findBinary()` looks for `LatteDictate*.AppImage`, finds none, and `available()`
+is false, so the IPC handler answers honestly. LatteDictate was **not** ported:
+the system's own dictation is in the Edit menu (see 5.1) and works in any text
+field including a ProseMirror one.
 
-### 5.5 `src/main/dictate.js` — Linux only, degrades correctly
+Worth recording, because the handoff worried about it: **the renderer never had
+a dictation control at all.** `grep -r dictate src/renderer` returns nothing. The
+IPC surface exists and nothing calls it. No dead button to hide.
 
-`findBinary()` looks for `LatteDictate*.AppImage` in a few directories and
-returns `null` when it finds none, so `available()` is `false` on macOS and the
-IPC handler answers honestly.
-
-The Linux implementation also types through `ydotool`, which does not exist on
-macOS.
-
-**Recommendation: do not port LatteDictate.** LatteWrite's answer was to hide the
-button on macOS and let the system's own dictation handle it, which works in any
-text field including a ProseMirror one. That is less code and better behaviour.
-Confirm the renderer actually hides the control when `dictate:available` returns
-false, rather than showing a dead button.
-
-### 5.6 `src/main/omarchy.js` — Linux only, degrades correctly
+### 5.6 `src/main/omarchy.js` — Linux only, degrades correctly. **Verified.**
 
 Reads `~/.local/state/omarchy/current/theme.name`. On macOS that path does not
-exist, `available()` is false, and `currentStyle()` returns `null`. The renderer
-then falls back to the built-in theme, which is correct.
+exist, `available()` is false, and `currentStyle()` returns `null`.
 
-Two consequences to handle in the UI:
+- `followOmarchy` now defaults to `false` on `darwin` in `src/main/store.js`. On
+  Linux it is unchanged.
+- The theme picker was the open question. It opens on **Editorial**, the real
+  category holding the current theme, with Ink checked, and the sidebar holds no
+  **Desktop** category at all — `extraCategories` is empty when `omarchy()`
+  returns null, and `ThemeChooser` picks the tab containing `current`.
 
-- `followOmarchy` defaults to `true` in `src/main/store.js`. On macOS it can
-  never do anything. Default it to `false` on `darwin` so the theme picker does
-  not open on a "Desktop" tab that cannot exist.
-- `App.svelte` builds a **Desktop** theme category from `window.api.theme.omarchy()`.
-  When that returns null the category is already omitted. Verify that the picker
-  then opens on a real tab rather than an empty one. **UNVERIFIED.**
-
-### 5.7 `src/main/server.js` — no consumer on macOS
+### 5.7 `src/main/server.js` — no consumer on macOS. **Left on.**
 
 The loopback API exists to serve the Omarchy plugin, which cannot run on macOS.
-It binds `127.0.0.1` and writes `~/.config/scriptorium/server.json` with mode
-`0600`.
-
-**Recommendation: leave it on.** It costs a socket on loopback, `--serve` keeps
-working, and it keeps one codebase instead of two. Anyone scripting the app on a
-Mac gets a usable API for free.
+It binds `127.0.0.1` and writes `server.json` with mode `0600`. It costs a socket
+on loopback, `--serve` keeps working, and it keeps one codebase instead of two.
+Confirmed it starts, answers on its port, and removes its descriptor on quit.
 
 If you would rather the Mac build open no sockets at all, gate the single call
-site in `index.js`:
+site in `index.js` — but do **not** delete the module, because `--serve` and the
+headless path are referenced in `handleArgs`.
 
-```js
-if (process.platform !== 'darwin') await server.start()
-```
+### 5.8 `src/main/paths.js` — both paths now branch. **Done.**
 
-Do **not** delete the module. The `--serve` flag and the headless path are
-referenced elsewhere in `handleArgs`.
-
-### 5.8 `src/main/paths.js` — already branches, but check the second path
-
-`APP_HOME` is already correct: on `darwin` it is `~/Scriptorium`, because a
+`APP_HOME` was already correct: on `darwin` it is `~/Scriptorium`, because a
 signed `.app` bundle is treated as read-only and writing beside it invalidates
-the signature. Settings therefore land in `~/Scriptorium/SCRIPTORIUM_DATA`.
+the signature. Settings land in `~/Scriptorium/SCRIPTORIUM_DATA/config.json`.
 
-`configDir` is **not** branched:
+`configDir` now branches too:
 
 ```js
-export const configDir = path.join(os.homedir(), '.config', 'scriptorium')
+export const configDir = process.platform === 'darwin'
+  ? path.join(os.homedir(), 'Library', 'Application Support', 'Scriptorium')
+  : path.join(os.homedir(), '.config', 'scriptorium')
 ```
 
-`~/.config` is a Linux convention. On macOS the conventional location is
-`~/Library/Application Support/Scriptorium`. This only holds `status.json`,
-`notes.json` and `server.json`, all of which exist for the Omarchy plugin, so
-nothing breaks either way. Decide whether you care about tidiness more than
-having one path in the code.
+`~/.config` is a Linux convention and macOS has no reader for these files at all,
+which left nothing arguing for it. One consequence to know about: that directory
+is **also Electron's userData directory**, because `productName` names both. Our
+`status.json`, `notes.json` and `server.json` sit beside Chromium's `Cache/` and
+`Cookies` without either touching the other, and the path stays fixed and
+guessable, which is the entire reason these files exist.
+
+### 5.9 The interface scale versus the traffic lights. **Bug, found and fixed.**
+
+Not in the original handoff. The interface scale is a `webContents` zoom factor,
+so every CSS pixel in the toolbar shrinks with it — but the traffic lights are
+drawn by the system at a fixed size and do not move. At 50% they hung *below* a
+half-height toolbar and over the note list.
+
+Both halves of the fix are needed:
+
+- `scriptorium.css` divides the toolbar's macOS gap and its minimum height by
+  `--zoom` (`calc(88px / var(--zoom))`, `calc(44px / var(--zoom))`), so both stay
+  fixed in real pixels while everything else scales.
+- `applyZoom()` in `index.js` re-centres the lights with
+  `setWindowButtonPosition` once the bar grows past its natural height, which is
+  what the floor above cannot cover.
+
+`--zoom` is set from `src/renderer/src/main.js`, at module scope rather than in
+`App.svelte`'s `onMount`: the main process pushes the first value on
+`did-finish-load`, and `onMount` does not reach its listeners until several
+awaits later, so the first push would be lost and the window would open at the
+wrong scale.
+
+Checked at 50%, 100% and 200%.
+
+### 5.10 Closing the window killed sync. **Bug, found and fixed.**
+
+Not in the original handoff, and macOS-only. `window-all-closed` used to stop
+sync, the dictation child and the loopback server, and *then* not quit on darwin.
+Nothing on the `activate` path starts sync again, so the dock icon handed you a
+window that could never reach the account for the rest of the session.
+
+Teardown now lives in a guarded `shutdown()` called from `before-quit`. On darwin
+and for a `--serve` instance, `window-all-closed` only drops the window
+reference; on Linux it calls `shutdown()` and quits as before. The guard is
+because Linux runs it twice — `window-all-closed` calls it and then quits, and
+quitting fires `before-quit`.
+
+Confirmed by closing the window, seeing the process stay up and the loopback API
+still answer on its port, and getting a working window back from the dock.
 
 ---
 
@@ -297,13 +328,11 @@ having one path in the code.
 
 ### 6.1 The mac target
 
-`package.json` currently has a `linux` block and no `mac` block. Add:
-
 ```json
 "mac": {
   "target": [{ "target": "dmg", "arch": ["arm64"] }],
   "category": "public.app-category.productivity",
-  "icon": "resources/icon.icns",
+  "icon": "resources/icon.png",
   "artifactName": "${productName}-${arch}.${ext}",
   "identity": null
 }
@@ -313,7 +342,7 @@ having one path in the code.
 signing identity and failing the build; the `afterPack` hook in section 3 does
 the ad-hoc signature instead.
 
-Add the scripts:
+The scripts:
 
 ```json
 "dist:mac": "electron-vite build && electron-builder --mac dmg --arm64",
@@ -322,24 +351,14 @@ Add the scripts:
 
 ### 6.2 The icon
 
-`resources/` holds `icon.png` (1024x1024) and `icon.svg`. There is **no `.icns`**,
-and macOS wants one.
+`resources/` holds `icon.png` (1024x1024) and `icon.svg`. There is no `.icns`
+checked in and there does not need to be: electron-builder converts the 1024px
+PNG itself, and `Scriptorium.app/Contents/Resources/icon.icns` is there in the
+built bundle. This is what LatteWrite already does. A second icon binary in the
+tree would only be one more thing to regenerate when the mark changes.
 
-Generate it on the Mac from the existing PNG:
-
-```bash
-mkdir -p /tmp/scriptorium.iconset
-cd /tmp/scriptorium.iconset
-for s in 16 32 64 128 256 512; do
-  sips -z $s $s   ~/Scriptorium/resources/icon.png --out icon_${s}x${s}.png
-  sips -z $((s*2)) $((s*2)) ~/Scriptorium/resources/icon.png --out icon_${s}x${s}@2x.png
-done
-iconutil -c icns /tmp/scriptorium.iconset -o ~/Scriptorium/resources/icon.icns
-```
-
-The mark is a stylised S drawn as vector paths in `resources/icon.svg`, so it
-rescales cleanly. Regenerate from the SVG with `rsvg-convert` if you prefer a
-sharper large size.
+If you ever do want to control the sizes by hand, `sips` + `iconutil` is the
+flow, and `resources/icon.svg` is vector so it rescales cleanly.
 
 ### 6.3 `npmRebuild` is off, and must stay off
 
@@ -364,23 +383,20 @@ is pure JS and injected explicitly in `src/main/sync.js`.
 ```
 
 electron-builder collects production `node_modules` separately, so the runtime
-dependencies (`simperium`, `ws`, `electron-store`, `adm-zip`) are packaged
-despite not matching that glob. Verified on the Linux artifact by extracting it
-and confirming each module is present. Do the same check on the `.app`:
+dependencies are packaged despite not matching that glob. Confirmed on the `.app`:
 
 ```bash
-ls Scriptorium.app/Contents/Resources/
-npx asar list Scriptorium.app/Contents/Resources/app.asar | grep -E "node_modules/(simperium|ws|electron-store|adm-zip)/package.json"
+npx asar list Scriptorium.app/Contents/Resources/app.asar \
+  | grep -E "node_modules/(simperium|ws|electron-store|adm-zip)/package.json"
 ```
 
-If any are missing, the app will launch and then fail the moment it tries to
-sync, which looks like a login problem rather than a packaging one.
+All four are present. If any were missing the app would launch and then fail the
+moment it tried to sync, which looks like a login problem rather than a packaging
+one.
 
 ---
 
-## 7. Things that should just work, and why
-
-Stated so you do not go looking for problems that are not there.
+## 7. Things that just work, and why
 
 - **Sync.** `src/main/sync.js` speaks to `wss://api.simperium.com` through `ws`.
   Pure JS, no platform surface.
@@ -391,13 +407,12 @@ Stated so you do not go looking for problems that are not there.
   a completely silent failure to sync.
 - **Sign-in.** `src/main/auth.js` opens Simplenote's own login page in a
   `BrowserWindow` with its own session partition, then sweeps that window's
-  storage for the token. reCAPTCHA Enterprise sees a real browser. Nothing here
-  is Linux-specific. **UNVERIFIED on macOS**, but there is no reason it should
-  differ.
+  storage for the token. Nothing here is Linux-specific. **UNVERIFIED on macOS.**
 - **The Markdown round trip.** `src/shared/markdown.mjs` and `schema.mjs` are
-  pure JS over ProseMirror.
+  pure JS over ProseMirror. `npm test` passes on macOS.
 - **Fonts.** 142 `@fontsource` packages are bundled at build time, so the 93
-  themes render offline without a system font dependency.
+  themes render offline without a system font dependency. No Linux font stack is
+  assumed; every theme names its families and ships them.
 
 ---
 
@@ -405,55 +420,49 @@ Stated so you do not go looking for problems that are not there.
 
 Run in this order. Each step failing tells you something different.
 
-1. `npm test` passes. If not, stop: the problem is not macOS.
-2. `npm run dev` opens a window.
-3. **⌘Q, ⌘C, ⌘V, ⌘A, ⌘Z all work.** If not, section 5.1.
-4. Sign in through the button. A Simplenote login window opens, reCAPTCHA
+1. ✅ `npm test` passes. If not, stop: the problem is not macOS.
+2. ✅ `npm run dev` opens a window.
+3. ✅ **⌘Q, ⌘C, ⌘V, ⌘A, ⌘Z all work.** If not, section 5.1.
+4. ⬜ Sign in through the button. A Simplenote login window opens, reCAPTCHA
    behaves, and after signing in the sidebar fills with notes.
-5. Open a note, close it again without typing, and confirm on another device
+5. ⬜ Open a note, close it again without typing, and confirm on another device
    that its modified date did **not** change. This is the no-edit guarantee and
    it is the single most important behaviour in the app.
-6. Edit a note, wait for autosave, confirm the change on another device.
-7. Settings: interface scale applies immediately; spell check toggles; the
-   "Add to applications menu" section is hidden (section 5.4).
-8. Theme picker opens on a real tab and does not show a Desktop category.
-9. Export a note, and export all notes to a zip. Confirm the zip opens and holds
-   one `.md` per note.
-10. `npm run dist:mac`, then launch the packaged `.app` **from Finder**, not from
-    the terminal. This is what catches the signing problem.
-11. Quit and relaunch. Settings, window size and the signed-in token all survive.
+6. ⬜ Edit a note, wait for autosave, confirm the change on another device.
+7. ✅ Settings: the "Add to applications menu" section is hidden (5.4).
+   ⬜ Interface scale applies immediately; spell check toggles. The scale was
+   checked at 50/100/200% by restarting into each (5.9), not by clicking it live.
+8. ✅ Theme picker opens on a real tab and shows no Desktop category.
+9. ⬜ Export a note, and export all notes to a zip.
+10. ✅ `npm run dist:mac`, then launch the packaged `.app` **from Finder**, not
+    from the terminal. This is what catches the signing problem.
+11. ✅ Quit and relaunch. Window size survives; settings persist to
+    `~/Scriptorium/SCRIPTORIUM_DATA/config.json`.
+
+Steps 4, 5, 6 and 9 all need a real Simplenote account and a second device, which
+the port did not have.
 
 ---
 
-## 9. What I could not verify, honestly
+## 9. What is still unverified
 
-I wrote this on Linux and ran none of it on a Mac. Specifically unverified:
+Everything else in this document came from a command run on macOS. These did not:
 
-- That the app launches at all once packaged and ad-hoc signed.
-- That the login window's token sweep finds the token in a macOS Electron
-  session. The storage key it looks for was confirmed on Linux as
-  `localStorage:stored_user.accessToken`.
-- Whether `process.execPath` in `status.json` is the bundle path or the inner
-  executable.
-- Whether the theme picker opens on a sensible tab when `omarchy.currentStyle()`
-  returns null.
-- Whether anything in the renderer assumes a Linux font stack. The themes name
-  families explicitly and bundle them, so this should be fine, but "should" is
-  the operative word.
-- The `.icns` generation commands in section 6.2 are written from the standard
-  `sips`/`iconutil` flow and have not been run.
+- **Sign-in.** That the login window's token sweep finds the token in a macOS
+  Electron session. The storage key it looks for was confirmed on Linux as
+  `localStorage:stored_user.accessToken`. Untested here for want of an account.
+- **The no-edit guarantee end to end.** `npm test` proves it at the Markdown
+  layer, on macOS. Nobody has watched a modified date on a second device.
+- **Autosave reaching another device.**
+- **Export**, note and zip.
+- **Spell check toggling live**, and the interface scale applied from the
+  Settings sheet rather than by restarting into a stored value.
 
 ---
 
-## 10. Suggested order of work
+## 10. If you pick this up again
 
-1. Menu bar (5.1). Everything else is unusable to test without it.
-2. `afterPack` signing hook and the `mac` build block (3, 6.1).
-3. Icon (6.2).
-4. Hide the macOS-irrelevant UI: applications menu section, dictation control,
-   Desktop theme tab (5.4, 5.5, 5.6).
-5. Decide on `configDir` and the loopback server (5.7, 5.8).
-6. Work the checklist in section 8.
-
-Items 4 and 5 are polish. Items 1 to 3 are the difference between a build that
-runs and one that does not.
+The port is done; what is left is the account-shaped half of section 8. Sign in
+on a Mac with a second device to hand and work steps 4, 5, 6 and 9. Step 5 is the
+one that matters: it is the promise the whole app is built around, and it is the
+one no amount of local testing can stand in for.

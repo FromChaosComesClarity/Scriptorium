@@ -16,7 +16,9 @@ const store = new Store({
     style: 'Ink',
     fontScale: 1,
     customStyles: {},
-    followOmarchy: true,   // track the system theme when one can be read
+    // Track the system theme when one can be read. Only Omarchy publishes one,
+    // so on macOS this can never be anything but a promise the app cannot keep.
+    followOmarchy: process.platform !== 'darwin',
 
     // Editing
     autosaveMs: 1200,

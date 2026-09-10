@@ -9,6 +9,16 @@
   // because that is what they actually are.
   import Icon from './Icon.svelte'
 
+  // macOS draws its own close/minimise/zoom buttons over the top-left of the
+  // window, so the first group has to get out of their way; see the
+  // [data-platform="darwin"] rules in scriptorium.css and trafficLightPosition
+  // in main/index.js. It is also where
+  // the modifier in every tooltip below comes from — Tiptap binds Mod-b, which
+  // is ⌘ here and Ctrl everywhere else, and a tooltip that said the wrong one
+  // would be worse than none.
+  const isMac = window.api?.platform === 'darwin'
+  const mod = isMac ? '⌘' : 'Ctrl+'
+
   export let editor = null
   export let onTheme = () => {}
   export let onFind = () => {}
@@ -51,8 +61,8 @@
   </div>
 
   <div class="group">
-    <button class="txt" class:on={is('bold')} on:click={run((c) => c.toggleBold())} title="Bold (Ctrl+B)"><b>B</b></button>
-    <button class="txt" class:on={is('italic')} on:click={run((c) => c.toggleItalic())} title="Italic (Ctrl+I)"><i>I</i></button>
+    <button class="txt" class:on={is('bold')} on:click={run((c) => c.toggleBold())} title={`Bold (${mod}B)`}><b>B</b></button>
+    <button class="txt" class:on={is('italic')} on:click={run((c) => c.toggleItalic())} title={`Italic (${mod}I)`}><i>I</i></button>
     <button class="txt" class:on={is('strike')} on:click={run((c) => c.toggleStrike())} title="Strikethrough"><s>S</s></button>
     <button class="txt mono" class:on={is('code')} on:click={run((c) => c.toggleCode())} title="Inline code">&lt;&gt;</button>
   </div>
@@ -92,7 +102,7 @@
     <button on:click={onExport} disabled={!canExport} title="Export this note as Markdown">
       <Icon name="download" />
     </button>
-    <button on:click={onFind} title="Find (Ctrl+F)">
+    <button on:click={onFind} title={`Find (${mod}F)`}>
       <Icon name="search" />
     </button>
     <button on:click={onTheme} title="Theme">
