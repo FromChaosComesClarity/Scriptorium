@@ -22,6 +22,21 @@ const server = new Server(sync)
 // closed, because the overlay is still using it.
 const serving = process.argv.includes('--serve')
 
+// What can actually relaunch this app.
+//
+// ⚠️ NOT `process.execPath` unconditionally. In an unpackaged dev run that is
+// the raw Electron binary, and advertising it means the Omarchy plugin's
+// middle-click launches Electron with no app, which shows Electron's own
+// default welcome window and looks like the app is broken.
+//
+// An unpackaged run has no single command that relaunches it, so it advertises
+// none. Both the plugin and the overlay already treat an empty command as "the
+// app is not installed here", which is the truthful answer.
+function launchCommand() {
+  if (process.env.APPIMAGE) return process.env.APPIMAGE
+  return app.isPackaged ? process.execPath : ''
+}
+
 // ── what the Omarchy plugin reads ───────────────────────────────────────────
 function publish() {
   try {
@@ -34,7 +49,7 @@ function publish() {
       signedIn: !!store.get('token'),
       // Where this binary is, so the widget can start the app without being
       // configured with a path that only works on one machine.
-      command: process.env.APPIMAGE || process.execPath,
+      command: launchCommand(),
       updated: Date.now()
     }, null, 2))
 
@@ -321,7 +336,7 @@ app.on('window-all-closed', () => {
     fs.mkdirSync(configDir, { recursive: true })
     fs.writeFileSync(statusPath, JSON.stringify({
       status: 'closed', notes: 0, signedIn: !!store.get('token'),
-      command: process.env.APPIMAGE || process.execPath, updated: Date.now()
+      command: launchCommand(), updated: Date.now()
     }, null, 2))
   } catch { /* nothing to do about it now */ }
   if (process.platform !== 'darwin') app.quit()

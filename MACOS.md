@@ -173,17 +173,41 @@ a port. Your call.
 
 ### 5.3 `src/main/index.js` — where the binary is
 
-Three places record or use the running binary's location:
+`status.json` advertises a command that other things use to relaunch the app.
+It is produced by `launchCommand()`:
 
-```
-index.js:37    command: process.env.APPIMAGE || process.execPath
-index.js:324   command: process.env.APPIMAGE || process.execPath
+```js
+function launchCommand() {
+  if (process.env.APPIMAGE) return process.env.APPIMAGE
+  return app.isPackaged ? process.execPath : ''
+}
 ```
 
-`process.env.APPIMAGE` is undefined on macOS, so these already fall through to
-`process.execPath`. Correct by accident, but check that what lands in
-`status.json` is the `.app` bundle path you actually want, not the inner
-`Contents/MacOS/Scriptorium` executable. **UNVERIFIED.**
+The `app.isPackaged` check is load-bearing and was added after a real bug. It
+used to be `process.env.APPIMAGE || process.execPath`, and in an unpackaged dev
+run `process.execPath` is the raw Electron binary. That got written into
+`status.json`, the Omarchy plugin's middle-click launched it, and Electron
+opened its own default welcome window, which looks exactly like the app being
+broken. An unpackaged run now advertises no command at all, and every consumer
+already treats an empty command as "not installed here".
+
+**On macOS this needs checking.** For a packaged `.app`, `process.execPath` is
+the inner `Contents/MacOS/Scriptorium` executable, not the bundle. Launching the
+inner executable directly usually works but bypasses `LaunchServices`, so it can
+behave differently over document handling, activation and the Dock.
+
+If that turns out to matter, derive the bundle path instead:
+
+```js
+if (app.isPackaged && process.platform === 'darwin') {
+  // .../Scriptorium.app/Contents/MacOS/Scriptorium -> .../Scriptorium.app
+  return process.execPath.replace(/\/Contents\/MacOS\/[^/]+$/, '')
+}
+```
+
+and have consumers use `open -a <bundle> --args ...`. Nothing on macOS consumes
+this today, since the Omarchy plugin is Linux-only, so it is only worth doing if
+something starts to. **UNVERIFIED.**
 
 ### 5.4 `src/main/desktop.js` — Linux only, already guarded
 
