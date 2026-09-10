@@ -423,12 +423,22 @@ Run in this order. Each step failing tells you something different.
 1. ✅ `npm test` passes. If not, stop: the problem is not macOS.
 2. ✅ `npm run dev` opens a window.
 3. ✅ **⌘Q, ⌘C, ⌘V, ⌘A, ⌘Z all work.** If not, section 5.1.
-4. ⬜ Sign in through the button. A Simplenote login window opens, reCAPTCHA
+4. ✅ Sign in through the button. A Simplenote login window opens, reCAPTCHA
    behaves, and after signing in the sidebar fills with notes.
+   *Confirmed on Linux 2026-09-10.*
 5. ⬜ Open a note, close it again without typing, and confirm on another device
    that its modified date did **not** change. This is the no-edit guarantee and
    it is the single most important behaviour in the app.
-6. ⬜ Edit a note, wait for autosave, confirm the change on another device.
+   **Still open.** Note that item 6 passing does not cover this: 6 proves a real
+   edit propagates, 5 proves a non-edit does not. It is a test for the *absence*
+   of a change, so it cannot be confirmed by noticing that things look right.
+   The cheapest way to run it: note a file's position in the sidebar, which is
+   ordered by modified date, open it, close it, and confirm it has not jumped to
+   the top on another device.
+6. ✅ Edit a note, wait for autosave, confirm the change on another device.
+   *Confirmed on Linux 2026-09-10: edits persist across devices and to the
+   Simplenote web app. This is the end-to-end proof that the Markdown round trip
+   survives real sync, not just the local test harness.*
 7. ✅ Settings: the "Add to applications menu" section is hidden (5.4).
    ⬜ Interface scale applies immediately; spell check toggles. The scale was
    checked at 50/100/200% by restarting into each (5.9), not by clicking it live.

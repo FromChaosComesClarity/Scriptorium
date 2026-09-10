@@ -196,10 +196,15 @@ All on macOS 26.6.2, Apple Silicon, Node 22.22.2, Electron 34.5.8:
 - Window bounds survive quit and relaunch.
 - All four runtime deps are inside `app.asar`.
 
-Still unverified **everywhere**, macOS and Linux alike, because it needs a real
-Simplenote account and a second device: sign-in, the no-edit guarantee end to
-end, autosave reaching another device, and export. `MACOS.md` section 8 tracks
-these as checklist items 4, 5, 6 and 9.
+Confirmed on Linux 2026-09-10, against a real account: **sign-in**, and **edits
+persisting across devices and to the Simplenote web app**. That is `MACOS.md`
+checklist items 4 and 6, and it is the end-to-end proof that the Markdown round
+trip survives real sync rather than only the local harness.
+
+Still unverified **everywhere**, macOS and Linux alike: the **no-edit guarantee**
+(item 5) and **export** (item 9). Item 6 passing does not cover item 5, because
+that one tests for the *absence* of a change: opening a note and closing it must
+leave its modified date alone on every other device.
 
 ---
 
