@@ -423,9 +423,14 @@ Run in this order. Each step failing tells you something different.
 1. ✅ `npm test` passes. If not, stop: the problem is not macOS.
 2. ✅ `npm run dev` opens a window.
 3. ✅ **⌘Q, ⌘C, ⌘V, ⌘A, ⌘Z all work.** If not, section 5.1.
-4. ✅ Sign in through the button. A Simplenote login window opens, reCAPTCHA
+4. ⬜ Sign in through the button. A Simplenote login window opens, reCAPTCHA
    behaves, and after signing in the sidebar fills with notes.
-   *Confirmed on Linux 2026-09-10.*
+   *Confirmed on **Linux** 2026-09-10, which is worth having but is not this
+   item.* Sign-in has always worked on Linux — that is where it was written. The
+   open question was only ever the macOS half of it: whether reCAPTCHA
+   Enterprise behaves in a macOS Electron `BrowserWindow`, and whether the token
+   sweep finds `localStorage:stored_user.accessToken` in a macOS session. Only a
+   Mac can answer that. See section 9.
 5. ⬜ Open a note, close it again without typing, and confirm on another device
    that its modified date did **not** change. This is the no-edit guarantee and
    it is the single most important behaviour in the app.
@@ -435,10 +440,13 @@ Run in this order. Each step failing tells you something different.
    The cheapest way to run it: note a file's position in the sidebar, which is
    ordered by modified date, open it, close it, and confirm it has not jumped to
    the top on another device.
-6. ✅ Edit a note, wait for autosave, confirm the change on another device.
-   *Confirmed on Linux 2026-09-10: edits persist across devices and to the
-   Simplenote web app. This is the end-to-end proof that the Markdown round trip
-   survives real sync, not just the local test harness.*
+6. ⬜ Edit a note, wait for autosave, confirm the change on another device.
+   *Confirmed on **Linux** 2026-09-10: edits persist across devices and to the
+   Simplenote web app. That is the end-to-end proof that the Markdown round trip
+   survives real sync and not just the local test harness — so what is left here
+   is running it from the Mac build, not whether the feature works at all.*
+   `sync.js` is pure JS over `ws` with no platform surface, so this is the least
+   likely of the four to differ. It still has not been run on a Mac.
 7. ✅ Settings: the "Add to applications menu" section is hidden (5.4).
    ⬜ Interface scale applies immediately; spell check toggles. The scale was
    checked at 50/100/200% by restarting into each (5.9), not by clicking it live.
@@ -450,21 +458,32 @@ Run in this order. Each step failing tells you something different.
     `~/Scriptorium/SCRIPTORIUM_DATA/config.json`.
 
 Steps 4, 5, 6 and 9 all need a real Simplenote account and a second device, which
-the port did not have.
+the port did not have. Steps 4 and 6 have since been run **on Linux**, which
+narrows what is left without closing them: a tick in this list means run on a
+Mac, because that is the only thing this list is for.
 
 ---
 
 ## 9. What is still unverified
 
-Everything else in this document came from a command run on macOS. These did not:
+Everything else in this document came from a command run on macOS. These did not.
+They are in order of how likely they are to actually differ on a Mac.
 
-- **Sign-in.** That the login window's token sweep finds the token in a macOS
-  Electron session. The storage key it looks for was confirmed on Linux as
-  `localStorage:stored_user.accessToken`. Untested here for want of an account.
-- **The no-edit guarantee end to end.** `npm test` proves it at the Markdown
-  layer, on macOS. Nobody has watched a modified date on a second device.
-- **Autosave reaching another device.**
-- **Export**, note and zip.
+- **Sign-in, on a Mac.** Whether reCAPTCHA Enterprise behaves in a macOS Electron
+  `BrowserWindow` and whether the sweep finds the token in a macOS session. The
+  storage key it looks for was confirmed on Linux as
+  `localStorage:stored_user.accessToken`. **This is the one with real macOS
+  surface**: it is a Chromium window, a third-party anti-bot service and a
+  platform-specific storage partition. Confirming it on Linux (2026-09-10) does
+  not touch any of that.
+- **The no-edit guarantee, anywhere.** `npm test` proves it at the Markdown
+  layer, on macOS. Nobody has yet watched a modified date on a second device, on
+  either platform. Section 8 item 5 says why item 6 passing does not cover it,
+  and how to run it cheaply.
+- **Export**, note and zip, on either platform.
+- **Autosave reaching another device, from the Mac build.** Confirmed on Linux
+  2026-09-10. `sync.js` is pure JS over `ws`, so there is no platform surface
+  here to go wrong — this is a formality rather than a risk.
 - **Spell check toggling live**, and the interface scale applied from the
   Settings sheet rather than by restarting into a stored value.
 
