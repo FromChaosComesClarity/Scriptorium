@@ -62,6 +62,7 @@ If that ever stops working, Settings takes a pasted token.
 npm test          # schema audit, round-trip fidelity, idempotence, no-edit guarantee
 npm run dev       # run it
 npm run dist:linux
+npm run dist:mac  # dmg, arm64;  dist:mac:zip for a zip
 ```
 
 `npm test` needs no account and no network. It is the gate that decides whether
@@ -69,10 +70,35 @@ this is safe to point at real notes.
 
 ## macOS
 
-Not built yet. [MACOS.md](MACOS.md) is a full handoff for doing it: what is
-Linux-specific and what to do with each piece, the ad-hoc signing trap that
-makes Apple Silicon refuse to launch an unsigned bundle, the packaging config,
-and a test checklist. It is honest about which parts were never run on a Mac.
+Built and running on Apple Silicon. Download `Scriptorium-arm64.dmg` from
+[Releases](https://github.com/FromChaosComesClarity/Scriptorium/releases), open
+it, and drag Scriptorium to Applications.
+
+**Then run this once, or it will not start:**
+
+```bash
+xattr -cr /Applications/Scriptorium.app
+codesign --force --deep --sign - /Applications/Scriptorium.app
+```
+
+Open it from Finder afterwards, not from a terminal.
+
+Both lines are needed and neither is optional. The first clears the quarantine
+macOS attaches to anything downloaded. The second is an ad-hoc signature: there
+is no Apple Developer certificate behind this app, and **Apple Silicon refuses
+to launch an unsigned bundle**, killing it with an error that reads like a crash
+inside the app rather than a security refusal. `codesign` only exists on macOS,
+so a release built anywhere else cannot have done it for you.
+
+`./install-on-mac.sh [path/to/Scriptorium.app]` in this repo runs both lines and
+verifies the result, if you would rather not type them.
+
+If you build it yourself on a Mac, `npm run dist:mac` signs the bundle during
+packaging (`scripts/afterPack.cjs`) and you need neither line.
+
+[MACOS.md](MACOS.md) is the full record: what is Linux-specific and what was
+done with each piece, the signing trap, the packaging config, and a test
+checklist marking what has been run on a Mac and what still has not.
 
 ## Omarchy
 

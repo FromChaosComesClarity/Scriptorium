@@ -5,11 +5,16 @@
   export let status = 'offline'
   export let onClose = () => {}
 
+  const isMac = window.api?.platform === 'darwin'
+
   const SECTIONS = [
     { id: 'account', label: 'Account', icon: 'user' },
     { id: 'editing', label: 'Editing', icon: 'pencil' },
     { id: 'appearance', label: 'Appearance', icon: 'palette' },
-    { id: 'system', label: 'System', icon: 'monitor' },
+    // System is one button that writes a freedesktop .desktop entry. On macOS
+    // the .app bundle already *is* the applications-menu entry, so the section
+    // could only ever report that it cannot do anything — hide it instead.
+    ...(isMac ? [] : [{ id: 'system', label: 'System', icon: 'monitor' }]),
     { id: 'backup', label: 'Backup', icon: 'archive' }
   ]
 
@@ -43,7 +48,7 @@
   onMount(async () => {
     scale = (await window.api.settings.get('uiScale')) || 1
     spellcheck = (await window.api.settings.get('spellcheck')) !== false
-    inMenu = await window.api.system.inMenu()
+    if (!isMac) inMenu = await window.api.system.inMenu()
   })
 
   function say(text, tone = 'ok') {

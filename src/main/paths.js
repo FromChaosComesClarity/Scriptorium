@@ -21,7 +21,18 @@ export const dataPath = path.join(APP_HOME, 'SCRIPTORIUM_DATA')
 // would have to be told where it is first. A fixed path under ~/.config is one
 // the plugin can simply open. If the file is not there, Scriptorium has
 // never run, which is a real answer rather than a guess.
-export const configDir = path.join(os.homedir(), '.config', 'scriptorium')
+//
+// macOS has no Omarchy and so no reader for these files at all, which leaves
+// nothing arguing for the Linux path there — so it follows the platform's own
+// convention instead of dropping a stray ~/.config into a Mac home directory.
+//
+// Note this is also Electron's userData directory, because productName is what
+// names both. That is deliberate and normal: our two files sit beside Chromium's
+// Cache/ and Cookies without either touching the other, and it keeps the fixed,
+// guessable path that is the entire reason these files exist.
+export const configDir = process.platform === 'darwin'
+  ? path.join(os.homedir(), 'Library', 'Application Support', 'Scriptorium')
+  : path.join(os.homedir(), '.config', 'scriptorium')
 
 // Sync state, note count, and where the running binary is, so the widget can
 // launch the app without being configured.

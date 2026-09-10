@@ -9,6 +9,11 @@ const on = (channel, fn) => {
 }
 
 contextBridge.exposeInMainWorld('api', {
+  // The renderer has no `process`, and several things it draws depend on which
+  // system it is drawing on: the traffic-light gap, whether ⌘N is the menu's to
+  // claim, and whether a Linux-only settings section is worth showing at all.
+  platform: process.platform,
+
   notes: {
     list: () => ipcRenderer.invoke('notes:list'),
     get: (id) => ipcRenderer.invoke('notes:get', id),
@@ -53,12 +58,21 @@ contextBridge.exposeInMainWorld('api', {
     addToMenu: () => ipcRenderer.invoke('desktop:install'),
     inMenu: () => ipcRenderer.invoke('desktop:installed'),
     setScale: (scale) => ipcRenderer.invoke('ui:scale', scale),
+    // Pushed whenever the zoom factor is applied, including at first load.
+    onZoom: (fn) => on('ui:zoom', fn),
     setSpellcheck: (on) => ipcRenderer.invoke('ui:spellcheck', on)
   },
 
   fonts: {
     catalog: () => ipcRenderer.invoke('fonts:catalog'),
     load: (family) => ipcRenderer.invoke('fonts:load', family)
+  },
+
+  // File-menu items on macOS. They come back here rather than being done in the
+  // main process because the export has to flush a pending autosave first, and
+  // only the renderer knows there is one.
+  menu: {
+    onCommand: (fn) => on('menu:command', fn)
   },
 
   dictate: {

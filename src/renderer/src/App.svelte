@@ -22,6 +22,8 @@
   let showSettings = false
   let syncError = ''
 
+  const isMac = window.api.platform === 'darwin'
+
   // The Markdown this note had when it was opened or last saved. Everything
   // about not corrupting people's notes hangs off this one variable.
   let baseline = ''
@@ -74,6 +76,14 @@
   async function exportNote() {
     await flush()
     const res = await window.api.export.note(selectedId)
+    if (res && res.error) syncError = res.error
+  }
+
+  // Also reachable from Settings > Backup. Both paths flush first, because an
+  // export that quietly omits the last thing you typed is worse than no export.
+  async function exportAll() {
+    await flush()
+    const res = await window.api.export.all()
     if (res && res.error) syncError = res.error
   }
 
@@ -176,9 +186,18 @@
     const last = await window.api.settings.get('lastNoteId')
     if (notes.length) openNote(notes.some((n) => n.id === last) ? last : notes[0].id)
 
+    // macOS File menu items. New Note is not among them: the menu runs that one
+    // itself, so that its ⌘N shows up where a Mac user goes looking for it.
+    window.api.menu.onCommand((command) => {
+      if (command === 'export-note' && selectedId) exportNote()
+      if (command === 'export-all') exportAll()
+    })
+
     window.addEventListener('keydown', (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'f') { e.preventDefault(); showFind = true }
-      if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); createNote() }
+      // On macOS ⌘N belongs to the File menu, and claiming it twice would make
+      // one keypress create two notes.
+      if (!isMac && (e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); createNote() }
       if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); flush() }
     })
     window.addEventListener('beforeunload', flush)

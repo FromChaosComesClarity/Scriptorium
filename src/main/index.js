@@ -12,6 +12,13 @@ import * as desktop from './desktop.js'
 import Server from './server.js'
 import { writeNote, writeAllZip, suggestedName } from './export.js'
 
+const IS_MAC = process.platform === 'darwin'
+
+// The toolbar's first row, in CSS pixels at 100%: 0.4rem of padding twice plus
+// a 1.95rem button. The macOS traffic lights have to be centred in it.
+const TOOLBAR_PX = 44
+const LIGHT_PX = 12
+
 let win = null
 const sync = new Sync()
 const server = new Server(sync)
@@ -72,6 +79,11 @@ function createWindow() {
     show: false,
     autoHideMenuBar: true,
     backgroundColor: '#1a1b26',
+    // macOS draws its own close/minimise/zoom buttons, and a window without
+    // them reads as broken, so the frame is only hidden down to an inset title
+    // bar. The toolbar pads its first row clear of the lights and makes itself
+    // a drag region; see the [data-platform="darwin"] rules in scriptorium.css.
+    ...(IS_MAC ? { titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 15, y: 16 } } : {}),
     // In a packaged build __dirname is inside app.asar, where resources/ does not
     // exist: `files` only ships out/. electron-builder puts the icon beside the
     // asar via extraResources, so the packaged path has to come from there.
@@ -91,7 +103,7 @@ function createWindow() {
 
   // Zoom has to be set on a live page, not in webPreferences.
   win.webContents.on('did-finish-load', () => {
-    win.webContents.setZoomFactor(store.get('uiScale') || 1)
+    applyZoom(store.get('uiScale') || 1)
   })
 
   const remember = () => {
@@ -114,6 +126,23 @@ function createWindow() {
 
 const send = (channel, payload) => {
   if (win && !win.isDestroyed()) win.webContents.send(channel, payload)
+}
+
+// The interface scale is a webContents zoom factor, so every CSS pixel in the
+// toolbar shrinks with it — but on macOS the traffic lights are drawn by the
+// system at a fixed size and do not move. Left alone, 50% leaves them dangling
+// below a half-height toolbar and over the note list.
+//
+// The two halves of the answer: the toolbar divides its macOS gap and its
+// height by --zoom, so both stay put in real pixels (see scriptorium.css), and
+// the lights are re-centred here once it grows past its natural height.
+function applyZoom(value) {
+  if (!win || win.isDestroyed()) return
+  win.webContents.setZoomFactor(value)
+  win.webContents.send('ui:zoom', value)
+  if (!IS_MAC) return
+  const bar = Math.max(TOOLBAR_PX * value, TOOLBAR_PX)
+  win.setWindowButtonPosition({ x: 15, y: Math.round((bar - LIGHT_PX) / 2) })
 }
 
 // Running headless there is no renderer to send to, so make one and wait for it
@@ -273,7 +302,7 @@ ipcMain.handle('desktop:installed', () => desktop.installed())
 ipcMain.handle('ui:scale', (_e, scale) => {
   const value = Math.min(2, Math.max(0.5, Number(scale) || 1))
   store.set('uiScale', value)
-  if (win && !win.isDestroyed()) win.webContents.setZoomFactor(value)
+  applyZoom(value)
   return value
 })
 
@@ -289,6 +318,55 @@ ipcMain.handle('ui:spellcheck', (_e, on) => {
 ipcMain.handle('dictate:available', () => dictate.available())
 ipcMain.handle('dictate:set', (_e, on) => dictate.setListening(on, (ev) => send('dictate:event', ev)))
 
+// ── menu bar ────────────────────────────────────────────────────────────────
+// macOS needs a real menu. Without one there is no ⌘Q, no ⌘C/⌘V/⌘X/⌘A and no
+// ⌘Z — a BrowserWindow gets those from menu roles, not for free — and the
+// system's own Dictation and Emoji items, which it injects into a standard Edit
+// menu, never appear. Linux keeps no menu at all, as it always has.
+//
+// ⌘F and ⌘S are deliberately absent so nothing is claimed twice: App.svelte
+// binds them itself. ⌘N is the other way round — the menu owns it here and the
+// renderer's keydown handler stands down on darwin, so the shortcut is visible
+// where a Mac user looks for it.
+function buildMenu() {
+  if (!IS_MAC) {
+    Menu.setApplicationMenu(null)
+    return
+  }
+
+  Menu.setApplicationMenu(Menu.buildFromTemplate([
+    { role: 'appMenu' },
+    {
+      label: 'File',
+      submenu: [
+        {
+          label: 'New Note',
+          accelerator: 'CmdOrCtrl+N',
+          click: () => handleArgs(['--new'])
+        },
+        { type: 'separator' },
+        {
+          label: 'Export Note…',
+          accelerator: 'Shift+CmdOrCtrl+E',
+          click: () => send('menu:command', 'export-note')
+        },
+        {
+          label: 'Export All Notes…',
+          accelerator: 'Shift+Alt+CmdOrCtrl+E',
+          click: () => send('menu:command', 'export-all')
+        },
+        { type: 'separator' },
+        { role: 'close' }
+      ]
+    },
+    // Roles, not hand-written items: the system adds Dictation and Emoji &
+    // Symbols to an Edit menu it recognises, and only to one it recognises.
+    { role: 'editMenu' },
+    { role: 'viewMenu' },
+    { role: 'windowMenu' }
+  ]))
+}
+
 // ── lifecycle ───────────────────────────────────────────────────────────────
 // One instance only. `scriptorium --new` from the bar must reach the running app
 // and open a note in it, not start a second copy fighting the first over the
@@ -299,7 +377,7 @@ if (!app.requestSingleInstanceLock()) {
   app.on('second-instance', (_e, argv) => { handleArgs(argv) })
 
   app.whenReady().then(async () => {
-    Menu.setApplicationMenu(null)
+    buildMenu()
     if (!serving) createWindow()
     startSync()
 
@@ -317,21 +395,22 @@ if (!app.requestSingleInstanceLock()) {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()
     })
 
-    app.on('before-quit', () => server.stop())
+    app.on('before-quit', shutdown)
   })
 }
 
-app.on('window-all-closed', () => {
-  // A serving instance outlives its window. Closing the editor should not take
-  // the overlay's ability to write notes down with it.
-  if (serving) {
-    win = null
-    return
-  }
+// Stop the network, the dictation child and the loopback socket, and leave the
+// status file truthful rather than stale. Guarded because on Linux this runs
+// twice: window-all-closed calls it and then quits, and quitting fires
+// before-quit.
+let tornDown = false
+function shutdown() {
+  if (tornDown) return
+  tornDown = true
+
   dictate.shutdown()
   sync.stop()
   server.stop()
-  // The status file outlives the app, so leave it truthful rather than stale.
   try {
     fs.mkdirSync(configDir, { recursive: true })
     fs.writeFileSync(statusPath, JSON.stringify({
@@ -339,7 +418,23 @@ app.on('window-all-closed', () => {
       command: launchCommand(), updated: Date.now()
     }, null, 2))
   } catch { /* nothing to do about it now */ }
-  if (process.platform !== 'darwin') app.quit()
+}
+
+app.on('window-all-closed', () => {
+  // A serving instance outlives its window. Closing the editor should not take
+  // the overlay's ability to write notes down with it.
+  //
+  // ⚠️ On macOS the app itself outlives its last window too, and the dock icon
+  // brings one back through `activate`. Tearing sync down here would hand that
+  // new window an app that can never reach the account again, because nothing
+  // on the activate path starts sync a second time. So darwin leaves everything
+  // running and does its teardown in before-quit instead.
+  if (serving || IS_MAC) {
+    win = null
+    return
+  }
+  shutdown()
+  app.quit()
 })
 
 export { dataPath }
