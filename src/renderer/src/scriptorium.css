@@ -553,3 +553,50 @@
   .sheet .brand { display: none; }
   .sheet .tab.on::before { display: none; }
 }
+
+/* ── narrow windows ───────────────────────────────────────────────────────────
+ * Text was being clipped at the sides as the window narrowed, rather than
+ * reflowing. Two separate causes, both fixed here rather than in app.css, which
+ * is inherited from LatteWrite.
+ *
+ * 1. `.editor-area` is a flex child of `.body`. A flex item defaults to
+ *    `min-width: auto`, which means it refuses to shrink below the width of its
+ *    own content. With a fixed 19rem sidebar beside it, the editor simply
+ *    overflowed instead of narrowing, and `.editor-scroll` clipped the result.
+ *    `min-width: 0` is what lets a flex item actually be flexible.
+ *
+ * 2. Nothing set `overflow-wrap`, so a long unbroken run of characters (a URL,
+ *    a file path, a hash) could not break and pushed the line out past the edge.
+ *    `break-word` only breaks when a word genuinely will not fit, so ordinary
+ *    prose is untouched.
+ *
+ * Code blocks are deliberately NOT wrapped: they keep `overflow-x: auto` from
+ * app.css and scroll inside their own box, because breaking a line of code
+ * changes what it appears to say.
+ */
+.scriptorium .editor-area,
+.scriptorium .editor-scroll {
+  min-width: 0;
+}
+
+.scriptorium .ProseMirror {
+  overflow-wrap: break-word;
+}
+
+/* Fixed table layout clips rather than expands, so cells need to wrap too. */
+.scriptorium .ProseMirror td,
+.scriptorium .ProseMirror th {
+  overflow-wrap: break-word;
+}
+
+/* The page padding is a fixed 2rem each side, which is a lot of a narrow
+ * window. Give it back as the window shrinks. */
+.scriptorium .editor-page {
+  padding-left: clamp(0.9rem, 4vw, 2rem);
+  padding-right: clamp(0.9rem, 4vw, 2rem);
+}
+
+/* Below this the sidebar is taking more than it earns. */
+@media (max-width: 46rem) {
+  .scriptorium .notes { width: 13rem; }
+}

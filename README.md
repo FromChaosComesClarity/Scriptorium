@@ -67,6 +67,13 @@ npm run dist:linux
 `npm test` needs no account and no network. It is the gate that decides whether
 this is safe to point at real notes.
 
+## macOS
+
+Not built yet. [MACOS.md](MACOS.md) is a full handoff for doing it: what is
+Linux-specific and what to do with each piece, the ad-hoc signing trap that
+makes Apple Silicon refuse to launch an unsigned bundle, the packaging config,
+and a test checklist. It is honest about which parts were never run on a Mac.
+
 ## Omarchy
 
 The companion plugin lives in
