@@ -97,7 +97,10 @@ so a release built anywhere else cannot have done it for you.
 verifies the result, if you would rather not type them.
 
 If you build it yourself on a Mac, `npm run dist:mac` signs the bundle during
-packaging (`scripts/afterPack.cjs`) and you need neither line.
+packaging (`scripts/afterPack.cjs`) and you need neither line. It also installs
+the result to `/Applications`, the way `dist:linux` drops an AppImage into
+`~/Apps/Scriptorium`. Quit a running copy first: unlike an AppImage, a `.app`
+bundle does not survive being replaced underneath it.
 
 [MACOS.md](MACOS.md) is the full record: what is Linux-specific and what was
 done with each piece, the signing trap, the packaging config, and a test

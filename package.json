@@ -1,6 +1,6 @@
 {
   "name": "scriptorium",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "A visual Markdown editor for Simplenote",
   "main": "out/main/index.js",
   "author": "FromChaosComesClarity",
@@ -16,7 +16,9 @@
     "dist:mac:zip": "electron-vite build && electron-builder --mac zip --arm64",
     "postdist": "npm run deploy",
     "deploy": "if [ -f dist/Scriptorium.AppImage ]; then mkdir -p ~/Apps/Scriptorium && cp dist/Scriptorium.AppImage ~/Apps/Scriptorium/.deploy.tmp && chmod +x ~/Apps/Scriptorium/.deploy.tmp && mv -f ~/Apps/Scriptorium/.deploy.tmp ~/Apps/Scriptorium/Scriptorium.AppImage && echo \"Deployed. A running copy keeps the old build until you quit it.\"; fi",
-    "postdist:linux": "npm run deploy"
+    "deploy:mac": "if [ -d dist/mac-arm64/Scriptorium.app ]; then rm -rf /Applications/.Scriptorium.deploy.tmp && cp -R dist/mac-arm64/Scriptorium.app /Applications/.Scriptorium.deploy.tmp && rm -rf /Applications/Scriptorium.app && mv /Applications/.Scriptorium.deploy.tmp /Applications/Scriptorium.app && echo \"Deployed to /Applications. Quit a running copy first: unlike an AppImage, a .app bundle does not survive being replaced underneath it.\"; fi",
+    "postdist:linux": "npm run deploy",
+    "postdist:mac": "npm run deploy:mac"
   },
   "dependencies": {
     "@fontsource/architects-daughter": "^5.2.7",

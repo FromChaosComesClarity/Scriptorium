@@ -134,6 +134,13 @@ export default class Sync extends EventEmitter {
     this.bucket.on('update', (id, data) => this.#ingest(id, data))
     this.bucket.on('remove', (id) => { this.notes.delete(id); this.emit('notes', this.list()) })
     this.bucket.on('indexing', () => this.#setStatus('indexing'))
+    // ⚠️ And back again when it finishes, or the status never leaves
+    // "Downloading notes". The two events are not a matched pair and the names
+    // invite the mistake: the bucket emits `indexing` when it starts and
+    // **`index`**, not `indexed`, when it is done. Without this the sidebar,
+    // the Settings sheet and the status.json the Omarchy widget reads all claim
+    // a download is still running for as long as the app is open.
+    this.bucket.on('index', () => this.#setStatus('connected'))
 
     this.#setStatus('connecting')
   }
