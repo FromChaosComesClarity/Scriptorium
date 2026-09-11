@@ -423,14 +423,14 @@ Run in this order. Each step failing tells you something different.
 1. ✅ `npm test` passes. If not, stop: the problem is not macOS.
 2. ✅ `npm run dev` opens a window.
 3. ✅ **⌘Q, ⌘C, ⌘V, ⌘A, ⌘Z all work.** If not, section 5.1.
-4. ⬜ Sign in through the button. A Simplenote login window opens, reCAPTCHA
+4. ✅ Sign in through the button. A Simplenote login window opens, reCAPTCHA
    behaves, and after signing in the sidebar fills with notes.
-   *Confirmed on **Linux** 2026-09-10, which is worth having but is not this
-   item.* Sign-in has always worked on Linux — that is where it was written. The
-   open question was only ever the macOS half of it: whether reCAPTCHA
-   Enterprise behaves in a macOS Electron `BrowserWindow`, and whether the token
-   sweep finds `localStorage:stored_user.accessToken` in a macOS session. Only a
-   Mac can answer that. See section 9.
+   *Confirmed **on macOS** 2026-09-11, which is what this item was always
+   asking.* The stored `tokenSource` is `localStorage:stored_user.accessToken`,
+   so the login window ran, reCAPTCHA Enterprise let it through, and the sweep
+   found the token in a macOS Electron session — the whole of what was in doubt.
+   The client then reached `connected` and 193 notes arrived in the sidebar,
+   watched rather than inferred.
 5. ⬜ Open a note, close it again without typing, and confirm on another device
    that its modified date did **not** change. This is the no-edit guarantee and
    it is the single most important behaviour in the app.
@@ -458,9 +458,10 @@ Run in this order. Each step failing tells you something different.
     `~/Scriptorium/SCRIPTORIUM_DATA/config.json`.
 
 Steps 4, 5, 6 and 9 all need a real Simplenote account and a second device, which
-the port did not have. Steps 4 and 6 have since been run **on Linux**, which
-narrows what is left without closing them: a tick in this list means run on a
-Mac, because that is the only thing this list is for.
+the port did not have. Step 4 has since been run **on macOS** and is closed.
+Step 6 has been run **on Linux** only, which narrows it without closing it: a
+tick in this list means run on a Mac, because that is the only thing this list is
+for.
 
 ---
 
@@ -469,13 +470,9 @@ Mac, because that is the only thing this list is for.
 Everything else in this document came from a command run on macOS. These did not.
 They are in order of how likely they are to actually differ on a Mac.
 
-- **Sign-in, on a Mac.** Whether reCAPTCHA Enterprise behaves in a macOS Electron
-  `BrowserWindow` and whether the sweep finds the token in a macOS session. The
-  storage key it looks for was confirmed on Linux as
-  `localStorage:stored_user.accessToken`. **This is the one with real macOS
-  surface**: it is a Chromium window, a third-party anti-bot service and a
-  platform-specific storage partition. Confirming it on Linux (2026-09-10) does
-  not touch any of that.
+Sign-in, which used to head this list as the one item with real macOS surface,
+came off it on 2026-09-11. See section 8 item 4.
+
 - **The no-edit guarantee, anywhere.** `npm test` proves it at the Markdown
   layer, on macOS. Nobody has yet watched a modified date on a second device, on
   either platform. Section 8 item 5 says why item 6 passing does not cover it,
@@ -483,7 +480,8 @@ They are in order of how likely they are to actually differ on a Mac.
 - **Export**, note and zip, on either platform.
 - **Autosave reaching another device, from the Mac build.** Confirmed on Linux
   2026-09-10. `sync.js` is pure JS over `ws`, so there is no platform surface
-  here to go wrong — this is a formality rather than a risk.
+  here to go wrong — this is a formality rather than a risk. Notes now reach the
+  Mac (193 of them, 2026-09-11); what is untested is an edit going the other way.
 - **Spell check toggling live**, and the interface scale applied from the
   Settings sheet rather than by restarting into a stored value.
 
