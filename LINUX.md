@@ -1,11 +1,17 @@
-# Building the Linux release of Scriptorium 0.2.0
+# Building the Linux release of Scriptorium 0.2.1
 
 A handoff written on the Mac by someone who could not run a single line of it on
 Linux. It is the mirror of `MACOS.md`, which came the other way.
 
-There is one job: **build the AppImage for the existing v0.2.0 release and upload
+There is one job: **build the AppImage for the existing v0.2.1 release and upload
 it.** The release is already published and is missing its Linux artifact, because
 an AppImage cannot be built on macOS.
+
+⚠️ **v0.2.1, not v0.2.0.** v0.2.0's AppImage was built and uploaded on
+2026-09-10 and is now known-bad: it carries a crash that kills the app on an
+aborted reconnect, which closing the laptop lid is enough to trigger. Its release
+notes are marked accordingly. Do not rebuild it; build 0.2.1 and leave 0.2.0 as
+the record of what went out.
 
 Everything below marked **UNVERIFIED** could not be checked from macOS. That is
 most of section 3, and section 3 is the part that matters.
@@ -14,33 +20,32 @@ most of section 3, and section 3 is the part that matters.
 
 ## 1. Where things stand
 
-`main` is at the merge commit `e7a532e`, tagged `v0.2.0` and published:
+`main` is at the merge commit `aef8dcb`, tagged `v0.2.1` and published:
 
 ```
-https://github.com/FromChaosComesClarity/Scriptorium/releases/tag/v0.2.0
+https://github.com/FromChaosComesClarity/Scriptorium/releases/tag/v0.2.1
 ```
 
 The release currently carries **one** asset, `Scriptorium-arm64.dmg`
-(`sha256 6bbd7271…`, built and signed on macOS 26.6.2). Its notes end with a
+(`sha256 fae1af84…`, built and signed on macOS 26.6.2). Its notes end with a
 "Known limits" section saying, in as many words, that there is no Linux artifact
 in this release and pointing Linux users at v0.1.2. That bullet is what you are
 here to delete.
 
-`package.json` is at `0.2.0`. It had drifted at `0.1.0` while the tags ran ahead
+`package.json` is at `0.2.1`. It had drifted at `0.1.0` while the tags ran ahead
 to `v0.1.2`; the release commit brought it in line.
 
 ---
 
 ## 2. Build and upload
 
-⚠️ **This file is not in the `v0.2.0` tag.** It was written after the release was
-cut, so `git checkout v0.2.0` makes it disappear from your working tree. Read it
-from `main` — or on GitHub — and keep it open while you build from the tag.
+This file *is* in the `v0.2.1` tag, so checking the tag out keeps it in front of
+you. (It was not in `v0.2.0`, which is why the last round of this said otherwise.)
 
 ```bash
 cd ~/…/Scriptorium
 git fetch --all --tags
-git checkout v0.2.0          # the tag, not main — the artifact must match the release
+git checkout v0.2.1          # the tag, not main — the artifact must match the release
 
 npm ci                       # or npm install
 npm test                     # the gate. 19 corpus cases, 2 normalise on first save
@@ -55,29 +60,56 @@ is unchanged, but it means a running copy keeps the old build until you quit it.
 Then, after section 3 says it is safe:
 
 ```bash
-gh release upload v0.2.0 dist/Scriptorium.AppImage
-gh release view v0.2.0 --json assets --jq '.assets[].name'   # expect both files
+gh release upload v0.2.1 dist/Scriptorium.AppImage
+gh release view v0.2.1 --json assets --jq '.assets[].name'   # expect both files
 ```
 
 Finally edit the release notes to drop the "No Linux artifact in this release"
 bullet, since it will no longer be true:
 
 ```bash
-gh release edit v0.2.0 --notes-file <edited notes>
+gh release edit v0.2.1 --notes-file <edited notes>
 ```
 
-`gh release view v0.2.0 --json body --jq .body > /tmp/notes.md` gets you the
+`gh release view v0.2.1 --json body --jq .body > /tmp/notes.md` gets you the
 current text to edit.
 
 ---
 
 ## 3. What to check before you upload. Read this part.
 
-0.2.0 is the macOS port, and the port touched shared code. **None of the
-following was run on Linux.** If any of it is broken, uploading the AppImage
-ships that breakage to the only platform that currently has users.
+**Most of what used to be here is done.** You verified the whole macOS port on
+Linux for 0.2.0 on 2026-09-10 — window-all-closed, `--serve`, the Omarchy widget,
+every branch the port added, the interface scale. None of that changed in 0.2.1,
+so sections 3.2 to 3.4 are now a re-read rather than a test, kept because a
+regression there is the expensive kind.
 
-### 3.1 Closing the window must still quit the app. **UNVERIFIED — check first.**
+What is actually new in 0.2.1 is **two changes to `src/main/sync.js`**, and both
+are shared code that affects Linux exactly as much as macOS. Check 3.0 and 3.1.
+
+### 3.0 The two sync fixes. **NEW in 0.2.1, UNVERIFIED on Linux.**
+
+Neither could be tested properly from macOS against your account, so both were
+verified in the narrow way described in section 5. On Linux you can watch them.
+
+**The status must leave "Downloading notes".** `sync.js` now listens for the
+bucket's `index` event — not `indexed`, the library's name for "finished" really
+is `index` — and returns the status to `connected`. Start the app signed in and
+watch the sidebar footer: it should read "Downloading notes" briefly and then
+**"Synced"**. On macOS with 193 notes that took under ten seconds; before the
+fix it sat there indefinitely. `~/.config/scriptorium/status.json` shows the same
+thing, and the Omarchy bar widget reads that file, so this is the one most
+visible to you day to day.
+
+**The reconnect crash must not happen.** This is the bug the release is named
+for. To provoke it: sign in, let it reach Synced, then take the network away
+(`nmcli networking off`, or pull the cable) and leave it for a minute or two
+while the reconnection timer runs. Before the fix the app died with
+`Error: WebSocket was closed before the connection was established`. After it,
+the status should simply fall to "Not connected", and bringing the network back
+should return it to Synced without a restart.
+
+### 3.1 Closing the window must still quit the app. **Verified on Linux for 0.2.0; unchanged in 0.2.1.**
 
 This is the highest-risk change in the release. `window-all-closed` used to do
 its teardown inline. It now calls a guarded `shutdown()`:
@@ -105,7 +137,7 @@ Check, in this order:
    which removes its descriptor.
 4. Quit with the window still open (Ctrl+Q or the WM close). Same three results.
 
-### 3.2 `--serve` and the Omarchy plugin. **UNVERIFIED.**
+### 3.2 `--serve` and the Omarchy plugin. **Verified for 0.2.0; unchanged.**
 
 A `--serve` instance still returns early from `window-all-closed`, as before, so
 it should outlive its window exactly as it used to. But the teardown it eventually
@@ -118,7 +150,7 @@ does now comes from `before-quit` rather than from the window closing.
   Scriptorium, not Electron's welcome window.
 - `scriptorium --new` and `--note <id>` against a running instance.
 
-### 3.3 The things the port deliberately branched. **UNVERIFIED on Linux.**
+### 3.3 The things the port deliberately branched. **Verified for 0.2.0; unchanged.**
 
 Each of these has a `darwin` arm that was tested on the Mac and a Linux arm that
 was not. Confirm the Linux arm is still the old behaviour:
@@ -139,7 +171,7 @@ the renderer stands down, guarded by `isMac` in `App.svelte`. On Linux there is
 no menu, so the renderer must still be handling it. If Ctrl+N does nothing, that
 guard is inverted.
 
-### 3.4 The interface scale. **UNVERIFIED on Linux.**
+### 3.4 The interface scale. **Verified for 0.2.0; unchanged.**
 
 `ui:scale` no longer calls `setZoomFactor` directly; it goes through
 `applyZoom()`, which also pushes a `ui:zoom` event to the renderer and then
@@ -170,9 +202,10 @@ time looking like a login problem.
 
 Do not upload. Fix it on `main`, and decide between:
 
-- **A `v0.2.1`** with both artifacts, if the bug is real and shipped. Leave
-  v0.2.0's DMG where it is and say in the new notes what was wrong with it.
-- **Amending `v0.2.0`** only if the bug is Linux-only and the macOS DMG is
+- **A `v0.2.2`** with both artifacts, if the bug is real and shipped. Leave
+  v0.2.1's DMG where it is, mark its notes the way v0.2.0's are marked, and say
+  in the new notes what was wrong.
+- **Amending `v0.2.1`** only if the bug is Linux-only and the macOS DMG is
   unaffected — retag and re-release, and the DMG will need rebuilding on a Mac
   from the new tag so the two artifacts come from the same commit.
 
@@ -201,6 +234,25 @@ persisting across devices and to the Simplenote web app**. That is `MACOS.md`
 checklist items 4 and 6, and it is the end-to-end proof that the Markdown round
 trip survives real sync rather than only the local harness.
 
+Confirmed **on macOS** 2026-09-11: **sign-in**, properly this time. The stored
+`tokenSource` is `localStorage:stored_user.accessToken`, so the login window,
+reCAPTCHA Enterprise and the token sweep all worked in a macOS Electron session,
+and 193 notes then arrived. That closes `MACOS.md` item 4 on macOS evidence
+rather than Linux evidence, which is what it was always asking for.
+
+The 0.2.1 fixes were verified only as narrowly as macOS allowed:
+
+- **The stuck status** was watched end to end on a real account — `indexing` for
+  75+ seconds before, `connected` in under ten after, footer reading "Synced".
+  That one is genuinely confirmed, just not on Linux.
+- **The reconnect crash** was reproduced and fixed at the seam, not in the wild:
+  a `close()` during a handshake to 192.0.2.1 (TEST-NET-1, unroutable), driven
+  through the real exported `createSocket` the way simperium drives it. Before,
+  the reported crash verbatim; after, the error is handled and `close` fires.
+  **Nobody has yet watched a real machine sleep, wake and recover.** That is
+  section 3.0, and it is the single most valuable thing you can do with this
+  release.
+
 Still unverified **everywhere**, macOS and Linux alike: the **no-edit guarantee**
 (item 5) and **export** (item 9). Item 6 passing does not cover item 5, because
 that one tests for the *absence* of a change: opening a note and closing it must
@@ -212,6 +264,8 @@ leave its modified date alone on every other device.
 
 1. `npm test`, then `npm run dist:linux`. If the build fails, nothing else
    matters.
-2. Section 3.1. If closing the window does not quit, stop and fix that.
-3. Sections 3.2 to 3.4.
-4. Upload, then edit the notes.
+2. Section 3.0, the two new fixes. The sleep-and-wake test is the one nobody has
+   run anywhere.
+3. Skim 3.1 to 3.4. They passed for 0.2.0 and nothing in them changed, so this is
+   a regression check, not a fresh one.
+4. Upload, then edit the notes to drop the "no Linux artifact yet" bullet.
