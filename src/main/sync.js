@@ -43,6 +43,49 @@ export const API_KEY = 'c8c2b86337154cdabc989b23e30c6bf4'
 // phone, so every note we touch gets it.
 const MARKDOWN_TAG = 'markdown'
 
+/**
+ * Every WebSocket the sync client uses, with the one listener node-simperium
+ * forgets to attach.
+ *
+ * ⚠️ This is not defensive tidying, it is a crash fix. node-simperium's
+ * `Client.connect()` assigns `onopen`, `onmessage` and `onclose` and **never**
+ * `onerror`, so a bare `new WebSocket(url)` reaches it with zero `'error'`
+ * listeners. An EventEmitter that emits `'error'` with no listener throws, and
+ * in the main process that is an uncaught exception dialog over the editor.
+ *
+ * It is reachable by simply closing the laptop lid:
+ *
+ *   1. The app connects. `Client.onConnect` sets `open = true` and starts the
+ *      heartbeat. **`open` is never set back to false** — grep the library, it
+ *      is assigned in exactly two places, `false` in the constructor and `true`
+ *      there — so from now on `disconnect()` always takes its
+ *      `this.socket.close()` branch whatever the socket is really doing.
+ *   2. The network drops. The reconnection timer fires, `connect()` builds a
+ *      fresh socket, and that socket sits in CONNECTING with nothing to reach.
+ *   3. The heartbeat times out after 2x its interval, `onConnectionTimeout`
+ *      calls `disconnect()`, and `open` is still true from step 1, so it calls
+ *      `close()` on the CONNECTING socket.
+ *   4. `ws` answers a close during the handshake by calling `abortHandshake`,
+ *      which emits `'error'`. Nothing is listening. The app dies.
+ *
+ * Handling it here restores the recovery that was always intended: `ws` emits
+ * `'error'` and then `'close'`, `onclose` reaches `Client.onConnectionFailed`,
+ * and the reconnection timer tries again.
+ *
+ * Deliberately NOT surfaced as a `sync-error` toast. This fires on every failed
+ * reconnect, which means every time the machine wakes up, and a red banner for
+ * something the status indicator already reports as "Not connected" would be
+ * noise. It is logged, because a *persistent* failure is worth being able to
+ * read in a terminal.
+ */
+export const createSocket = (url) => {
+  const socket = new WebSocket(url)
+  socket.on('error', (e) => {
+    console.warn('[sync] socket error:', (e && e.message) || e)
+  })
+  return socket
+}
+
 export const titleOf = (content) => {
   const line = String(content || '').split('\n').find((l) => l.trim().length)
   return (line || '').replace(/^#+\s*/, '').trim() || 'New note'
@@ -72,8 +115,9 @@ export default class Sync extends EventEmitter {
 
     this.client = createClient(APP_ID, token, {
       // Electron's main process is Node, where `window.WebSocket` does not
-      // exist, so the library's default provider would fail. Hand it `ws`.
-      websocketClientProvider: (url) => new WebSocket(url)
+      // exist, so the library's default provider would fail. Hand it `ws`,
+      // wrapped — see createSocket, which carries the crash it prevents.
+      websocketClientProvider: createSocket
     })
 
     this.client.on('connect', () => this.#setStatus('connected'))
