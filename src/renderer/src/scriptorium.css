@@ -120,7 +120,10 @@
   opacity: 1;
   color: var(--accent);
 }
-.note-pin.on :global(svg) { transform: rotate(-45deg); }
+/* ⚠️ Plain `svg`, not `:global(svg)`. This is a stylesheet imported by main.js,
+   not a Svelte component <style>, so :global() is not valid CSS here and the
+   browser drops the whole rule. The pinned icon simply never rotated. */
+.note-pin.on svg { transform: rotate(-45deg); }
 
 .note-row { display: flex; align-items: baseline; gap: 0.4rem; }
 
