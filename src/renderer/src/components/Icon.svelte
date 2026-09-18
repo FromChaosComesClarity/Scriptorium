@@ -27,7 +27,8 @@
     user: 'M12 11a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM5 20c0-3.3 3.1-5.5 7-5.5s7 2.2 7 5.5',
     pencil: 'M4 20l4.5-1 9.8-9.8a2.1 2.1 0 00-3-3L5.5 15.5 4 20z',
     monitor: 'M4 5h16v11H4zM9 20h6M12 16v4',
-    archive: 'M4 5h16v4H4zM6 9v10h12V9M10 13h4'
+    archive: 'M4 5h16v4H4zM6 9v10h12V9M10 13h4',
+    pin: 'M9 4h6l-.6 5.2 2.6 2.4v1.4H7v-1.4l2.6-2.4L9 4zM12 13v7'
   }
 
   // The pilcrow reads better as a real glyph than as a traced outline, and it is

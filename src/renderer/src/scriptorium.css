@@ -64,21 +64,63 @@
 
 .notes-scroll { flex: 1; overflow-y: auto; min-height: 0; }
 
+/* The row is a container, not a button: it holds the open-note button and the
+   pin button as siblings. A button nested inside a button is invalid markup and
+   the inner one's clicks get swallowed. */
 .note {
+  position: relative;
+  border-bottom: 1px solid color-mix(in srgb, var(--rule) 55%, transparent);
+}
+.note:hover { background: color-mix(in srgb, var(--muted) 10%, transparent); }
+.note.selected { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+.note.selected .note-title { color: var(--accent); }
+
+.note-open {
   display: block;
   width: 100%;
   text-align: left;
   background: transparent;
   border: none;
-  border-bottom: 1px solid color-mix(in srgb, var(--rule) 55%, transparent);
-  padding: 0.62rem 0.75rem;
+  /* The right padding reserves the pin's slot permanently, so revealing it on
+     hover does not shove the timestamp sideways. */
+  padding: 0.62rem 2.3rem 0.62rem 0.75rem;
   cursor: pointer;
   color: var(--text);
   font: inherit;
 }
-.note:hover { background: color-mix(in srgb, var(--muted) 10%, transparent); }
-.note.selected { background: color-mix(in srgb, var(--accent) 16%, transparent); }
-.note.selected .note-title { color: var(--accent); }
+.note-open:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+.note-pin {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.5rem;
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  color: var(--muted);
+  cursor: pointer;
+  /* Hidden until wanted: an unpinned note shows nothing, so the list stays
+     quiet, and the control appears where your pointer already is. */
+  opacity: 0;
+  transition: opacity 0.12s ease, color 0.12s ease;
+}
+.note:hover .note-pin,
+.note-pin:focus-visible { opacity: 1; }
+.note-pin:hover { color: var(--accent); background: color-mix(in srgb, var(--muted) 16%, transparent); }
+.note-pin:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* A pinned note keeps its pin showing, because that is the only thing marking
+   it as pinned now that the bullet is gone. */
+.note-pin.on {
+  opacity: 1;
+  color: var(--accent);
+}
+.note-pin.on :global(svg) { transform: rotate(-45deg); }
 
 .note-row { display: flex; align-items: baseline; gap: 0.4rem; }
 
@@ -98,8 +140,6 @@
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
-
-.note .pin { color: var(--accent); flex: none; }
 
 .note-preview {
   display: block;

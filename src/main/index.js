@@ -215,6 +215,7 @@ ipcMain.handle('notes:get', (_e, id) => sync.get(id))
 ipcMain.handle('notes:save', (_e, { id, content }) => sync.save(id, content))
 ipcMain.handle('notes:create', () => sync.create(''))
 ipcMain.handle('notes:trash', (_e, id) => sync.trash(id))
+ipcMain.handle('notes:pin', (_e, { id, pinned }) => sync.setPinned(id, pinned))
 ipcMain.handle('sync:status', () => ({
   status: sync.status,
   signedIn: !!store.get('token'),

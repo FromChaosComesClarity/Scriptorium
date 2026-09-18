@@ -228,7 +228,8 @@
         {status}
         onSelect={openNote}
         onCreate={createNote}
-        onTrash={trashNote} />
+        onTrash={trashNote}
+        onPin={(id, pinned) => window.api.notes.pin(id, pinned)} />
 
       <div class="editor-area">
         {#if showFind && editor}

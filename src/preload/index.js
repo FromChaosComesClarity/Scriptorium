@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld('api', {
     save: (id, content) => ipcRenderer.invoke('notes:save', { id, content }),
     create: () => ipcRenderer.invoke('notes:create'),
     trash: (id) => ipcRenderer.invoke('notes:trash', id),
+    pin: (id, pinned) => ipcRenderer.invoke('notes:pin', { id, pinned }),
     onChanged: (fn) => on('notes:changed', fn),
     onNoteChanged: (fn) => on('note:changed', fn),
     // Pushed when the Omarchy plugin runs `scriptorium --note <id>` / `--new`.

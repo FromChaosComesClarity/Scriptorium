@@ -1,10 +1,13 @@
 <script>
+  import Icon from './Icon.svelte'
+
   export let notes = []
   export let selectedId = ''
   export let status = 'offline'
   export let onSelect = () => {}
   export let onCreate = () => {}
   export let onTrash = () => {}
+  export let onPin = () => {}
 
   let query = ''
 
@@ -46,17 +49,25 @@
 
   <div class="notes-scroll">
     {#each filtered as note (note.id)}
-      <button
-        class="note"
-        class:selected={note.id === selectedId}
-        on:click={() => onSelect(note.id)}>
-        <span class="note-row">
-          {#if note.pinned}<span class="pin" title="Pinned">•</span>{/if}
-          <span class="note-title">{note.title}</span>
-          <span class="note-when">{when(note.modificationDate)}</span>
-        </span>
-        {#if note.preview}<span class="note-preview">{note.preview}</span>{/if}
-      </button>
+      <div class="note" class:selected={note.id === selectedId} class:pinned={note.pinned}>
+        <button class="note-open" on:click={() => onSelect(note.id)}>
+          <span class="note-row">
+            <span class="note-title">{note.title}</span>
+            <span class="note-when">{when(note.modificationDate)}</span>
+          </span>
+          {#if note.preview}<span class="note-preview">{note.preview}</span>{/if}
+        </button>
+
+        <button
+          class="note-pin"
+          class:on={note.pinned}
+          aria-pressed={note.pinned}
+          aria-label={note.pinned ? `Unpin ${note.title}` : `Pin ${note.title} to the top`}
+          title={note.pinned ? 'Unpin' : 'Pin to the top'}
+          on:click|stopPropagation={() => onPin(note.id, !note.pinned)}>
+          <Icon name="pin" size={13} />
+        </button>
+      </div>
     {:else}
       <p class="empty">
         {#if status === 'indexing'}Fetching your notes…

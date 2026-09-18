@@ -43,6 +43,10 @@ export const API_KEY = 'c8c2b86337154cdabc989b23e30c6bf4'
 // phone, so every note we touch gets it.
 const MARKDOWN_TAG = 'markdown'
 
+// Simplenote's own flag for a note kept at the top of the list. It is a
+// systemTag like any other, so every Simplenote client already agrees about it.
+const PINNED_TAG = 'pinned'
+
 /**
  * Every WebSocket the sync client uses, with the one listener node-simperium
  * forgets to attach.
@@ -221,6 +225,32 @@ export default class Sync extends EventEmitter {
       systemTags: [...systemTags],
       modificationDate: Date.now() / 1000
     }
+    delete next.id
+
+    this.bucket.update(id, next)
+    this.notes.set(id, { id, ...next })
+    this.emit('notes', this.list())
+    return next
+  }
+
+  /**
+   * Pin or unpin, which in Simplenote is a systemTag.
+   *
+   * ⚠️ `modificationDate` is deliberately left alone. Pinning is metadata, not
+   * content: bumping the date would make a note you merely filed look freshly
+   * written on every device, and in a list ordered by date it would jump to the
+   * top, which is the opposite of what you asked for. The version still moves,
+   * so the change syncs like any other.
+   */
+  setPinned(id, pinned) {
+    const note = this.notes.get(id)
+    if (!note || !this.bucket) return null
+
+    const tags = new Set(note.systemTags || [])
+    if (pinned) tags.add(PINNED_TAG)
+    else tags.delete(PINNED_TAG)
+
+    const next = { ...note, systemTags: [...tags] }
     delete next.id
 
     this.bucket.update(id, next)
