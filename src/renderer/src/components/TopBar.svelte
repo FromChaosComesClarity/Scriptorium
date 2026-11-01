@@ -122,7 +122,7 @@
       {#if showTable}
         <div class="tablemenu" role="menu">
           <div class="grid-label">{hc && hr ? `${hc} × ${hr}` : 'Insert table'}</div>
-          <div class="grid-pick" on:mouseleave={() => { hr = 0; hc = 0 }}>
+          <div class="grid-pick" role="presentation" on:mouseleave={() => { hr = 0; hc = 0 }}>
             {#each GRID as r}
               <div class="grid-row">
                 {#each GRID as c}
