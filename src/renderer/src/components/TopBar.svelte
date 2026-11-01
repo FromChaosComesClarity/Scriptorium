@@ -35,6 +35,35 @@
   const is = (name, attrs) => (tick, editor ? editor.isActive(name, attrs) : false)
   const run = (fn) => () => { if (editor) fn(editor.chain().focus()).run() }
 
+  // ── the table menu, ported from LatteWrite ──
+  // A size grid to insert with, then row and column editing. LatteWrite's
+  // "Toggle borders" stays behind: a borderless table is not something Markdown
+  // can say. Whatever these commands do to a table, the GFM normaliser in
+  // shared/schema.mjs reshapes it into what the note will actually save.
+  let showTable = false
+  let hr = 0, hc = 0 // hovered rows/cols in the size grid
+  const GRID = [1, 2, 3, 4, 5, 6, 7, 8]
+  const closeTable = () => { showTable = false; hr = 0; hc = 0 }
+  function insertTableSize(rows, cols) {
+    closeTable()
+    if (editor) editor.chain().focus().insertTable({ rows, cols, withHeaderRow: true }).run()
+  }
+  const tableDo = (fn) => () => { closeTable(); if (editor) fn(editor.chain().focus()).run() }
+  // Greyed out rather than silently doing nothing: outside a table none of these
+  // apply, and the last row or column of a table cannot be deleted.
+  const can = (name) => (tick, editor ? editor.can()[name]() : false)
+  const TABLE_OPS = [
+    { label: 'Add row above', cmd: 'addRowBefore' },
+    { label: 'Add row below', cmd: 'addRowAfter' },
+    { label: 'Add column left', cmd: 'addColumnBefore' },
+    { label: 'Add column right', cmd: 'addColumnAfter' },
+    { sep: true },
+    { label: 'Delete row', cmd: 'deleteRow' },
+    { label: 'Delete column', cmd: 'deleteColumn' },
+    { label: 'Delete table', cmd: 'deleteTable', danger: true }
+  ]
+  const onKey = (e) => { if (showTable && e.key === 'Escape') closeTable() }
+
   function setLink() {
     if (!editor) return
     const url = window.prompt('Link to')
@@ -85,9 +114,38 @@
     <button class:on={is('link')} on:click={setLink} title="Link">
       <Icon name="link" />
     </button>
-    <button on:click={run((c) => c.insertTable({ rows: 3, cols: 3, withHeaderRow: true }))} title="Insert table">
-      <Icon name="table" />
-    </button>
+    <div class="tablewrap">
+      <button class:on={showTable || is('table')} on:click={() => (showTable ? closeTable() : (showTable = true))}
+        title="Table" aria-haspopup="menu" aria-expanded={showTable}>
+        <Icon name="table" />
+      </button>
+      {#if showTable}
+        <div class="tablemenu" role="menu">
+          <div class="grid-label">{hc && hr ? `${hc} × ${hr}` : 'Insert table'}</div>
+          <div class="grid-pick" on:mouseleave={() => { hr = 0; hc = 0 }}>
+            {#each GRID as r}
+              <div class="grid-row">
+                {#each GRID as c}
+                  <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
+                  <div class="grid-cell" class:hot={c <= hc && r <= hr}
+                    on:mouseenter={() => { hc = c; hr = r }}
+                    on:click={() => insertTableSize(r, c)}></div>
+                {/each}
+              </div>
+            {/each}
+          </div>
+          <div class="menu-sep"></div>
+          {#each TABLE_OPS as op}
+            {#if op.sep}
+              <div class="menu-sep"></div>
+            {:else}
+              <button role="menuitem" class:danger={op.danger} disabled={!can(op.cmd)}
+                on:click={tableDo((c) => c[op.cmd]())}>{op.label}</button>
+            {/if}
+          {/each}
+        </div>
+      {/if}
+    </div>
     <button on:click={run((c) => c.setHorizontalRule())} title="Divider">
       <Icon name="divider" />
     </button>
@@ -113,3 +171,7 @@
     </button>
   </div>
 </div>
+
+<svelte:window on:keydown={onKey} />
+<!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
+{#if showTable}<div class="menu-scrim" on:click={closeTable}></div>{/if}

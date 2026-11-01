@@ -24,6 +24,8 @@ import Table from '@tiptap/extension-table'
 import TableRow from '@tiptap/extension-table-row'
 import TableHeader from '@tiptap/extension-table-header'
 import TableCell from '@tiptap/extension-table-cell'
+import { Plugin, PluginKey } from '@tiptap/pm/state'
+import { TableMap } from '@tiptap/pm/tables'
 
 // GFM carries per-column alignment in the delimiter row (`:---`, `:---:`, `---:`)
 // and Tiptap's table cells have nowhere to put it, so a round trip would quietly
@@ -42,6 +44,123 @@ const AlignedHeader = TableHeader.extend({
 
 const AlignedCell = TableCell.extend({
   addAttributes() { return { ...this.parent?.(), ...align } }
+})
+
+// ── tables, the GFM way ─────────────────────────────────────────────────────
+// A ProseMirror table can be shapes a GFM pipe table cannot: a header row that
+// is not the first row, a header deleted outright, cells merged across columns
+// or rows, alignment that differs from cell to cell. Once rows and columns can
+// be added and removed from the toolbar, every one of those is a click away,
+// and each one would SAVE differently from how it LOOKS. Delete the header and
+// the next row silently becomes the header on reload; add a row above the
+// header and the column alignment silently vanishes.
+//
+// So a table is read through one lens, `gfmGrid`, by both the serialiser and
+// the editor. The serialiser writes exactly that grid, and the editor reshapes
+// itself into it after every change, so what is on screen is what Simplenote
+// will get.
+
+/**
+ * A table as GFM sees it: a plain grid, one alignment per column.
+ *
+ * `cells[r][c]` is the cell whose top-left corner is at that position, or null
+ * where a merged cell spills over. A column's alignment is the first one set
+ * anywhere in it, top down. Scriptorium has no control that sets or clears an
+ * alignment, so every alignment came from the note's own Markdown, and taking
+ * the first one found keeps it when the header row is replaced or a column is
+ * shuffled, instead of dropping it because one new cell has none.
+ */
+export function gfmGrid(table) {
+  const map = TableMap.get(table)
+  const cells = []
+  const aligns = Array(map.width).fill(null)
+  for (let r = 0; r < map.height; r++) {
+    const row = []
+    for (let c = 0; c < map.width; c++) {
+      const offset = map.map[r * map.width + c]
+      // A ragged row (fewer cells than the widest) leaves offset 0 in the map,
+      // which is the first row, never a cell; findCell would throw on it. It is
+      // an empty position, as the serialiser always wrote it.
+      if (!offset) { row.push(null); continue }
+      const rect = map.findCell(offset)
+      const cell = rect.left === c && rect.top === r ? table.nodeAt(offset) : null
+      row.push(cell)
+      if (cell && !aligns[c] && cell.attrs.align) aligns[c] = cell.attrs.align
+    }
+    cells.push(row)
+  }
+  return { width: map.width, height: map.height, cells, aligns }
+}
+
+// Bring one table into GFM shape inside `tr`. Returns nothing; `tr` records
+// whether anything changed.
+function fixTable(tr, table, pos) {
+  const { tableHeader, tableCell, tableRow } = tr.doc.type.schema.nodes
+  const grid = gfmGrid(table)
+
+  // Merged cells first. GFM has no spans, so a merged cell becomes its
+  // top-left cell plus empty ones, exactly as the serialiser would write it.
+  // This replaces the whole table, which is acceptable only because a merge
+  // can arrive by paste alone: nothing in the app creates one.
+  let merged = false
+  table.descendants((n) => {
+    if (n.attrs.colspan > 1 || n.attrs.rowspan > 1) merged = true
+    return n.type === tableRow
+  })
+  if (merged) {
+    const rows = grid.cells.map((row, r) => tableRow.create(null, row.map((cell, c) => {
+      const type = r === 0 ? tableHeader : tableCell
+      const attrs = { align: grid.aligns[c] }
+      return cell ? type.create(attrs, cell.content) : type.createAndFill(attrs)
+    })))
+    tr.replaceWith(pos, pos + table.nodeSize, table.type.create(table.attrs, rows))
+    return
+  }
+
+  // Otherwise only node types and attributes change, which setNodeMarkup does
+  // in place, so the caret stays exactly where the user left it.
+  table.forEach((row, rowOffset, r) => {
+    row.forEach((cell, cellOffset, c) => {
+      const type = r === 0 ? tableHeader : tableCell
+      const align = grid.aligns[c] ?? null
+      if (cell.type === type && cell.attrs.align === align) return
+      const at = pos + 1 + rowOffset + 1 + cellOffset
+      tr.setNodeMarkup(at, type, { ...cell.attrs, align })
+    })
+  })
+}
+
+/**
+ * A transaction that puts every table in `state` into GFM shape, or null when
+ * they all already are. Exported for the round-trip test.
+ */
+export function gfmTablesFix(state) {
+  const tables = []
+  state.doc.descendants((node, pos) => {
+    if (node.type.name === 'table') { tables.push(pos); return false }
+    return true
+  })
+  if (!tables.length) return null
+  const tr = state.tr
+  // Last first, so a table rebuilt for merged cells cannot shift the position
+  // of one still waiting to be checked.
+  for (const pos of tables.reverse()) fixTable(tr, tr.doc.nodeAt(pos), pos)
+  return tr.docChanged ? tr : null
+}
+
+const gfmTablesKey = new PluginKey('gfmTables')
+
+const GfmTable = Table.extend({
+  addProseMirrorPlugins() {
+    return [
+      ...(this.parent?.() || []),
+      new Plugin({
+        key: gfmTablesKey,
+        appendTransaction: (trs, _old, state) =>
+          trs.some((t) => t.docChanged) ? gfmTablesFix(state) : null
+      })
+    ]
+  }
 })
 
 // Shared by the editor and by the round-trip test, so what the tests prove is
@@ -65,7 +184,7 @@ export const markdownExtensions = [
   Image.configure({ inline: true, allowBase64: false }),
   TaskList,
   TaskItem.configure({ nested: true }),
-  Table.configure({ resizable: false }),
+  GfmTable.configure({ resizable: false }),
   TableRow,
   AlignedHeader,
   AlignedCell

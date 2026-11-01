@@ -22,7 +22,7 @@
 import MarkdownIt from 'markdown-it'
 import { MarkdownParser, MarkdownSerializer } from 'prosemirror-markdown'
 import { getSchema } from '@tiptap/core'
-import { markdownExtensions } from './schema.mjs'
+import { markdownExtensions, gfmGrid } from './schema.mjs'
 
 export const schema = getSchema(markdownExtensions)
 
@@ -177,10 +177,17 @@ function backticksFor(node, side) {
 // One cell's inline content, rendered on its own. A pipe table is a single line
 // per row, so anything multi-line collapses and any literal pipe is escaped.
 // There is no other way to write it in GFM.
+//
+// ⚠️ The cell is serialised AS ITSELF, never rebuilt into a doc. This used to
+// be `schema.topNodeType.createAndFill(null, cell.content)`, and `schema` there
+// is this module's, while the editor builds its own Schema instance from the
+// same extensions. ProseMirror compares node types by identity, so for every
+// document coming from the app the fill failed, returned null, and the cell was
+// written as ''. Any edit to a note with a table saved it with every cell
+// emptied, and Simperium synced the blanks everywhere. `serialize` renders the
+// children of whatever node it is handed, so no schema is involved at all.
 function renderCell(cell) {
-  const doc = schema.topNodeType.createAndFill(null, cell.content)
-  if (!doc) return ''
-  return serializer.serialize(doc, { tightLists: true })
+  return serializer.serialize(cell, { tightLists: true })
     .replace(/\\\n/g, ' ')
     .replace(/\n+/g, ' ')
     .replace(/\|/g, '\\|')
@@ -245,24 +252,20 @@ export const serializer = new MarkdownSerializer({
       (node.attrs.title ? ' "' + node.attrs.title.replace(/"/g, '\\"') + '"' : '') + ')')
   },
 
+  // Written from `gfmGrid`, the same view of the table the editor reshapes
+  // itself into, so a merged cell's text stays in its own column (the spilled-
+  // over positions are empty) and alignment belongs to the column rather than
+  // to whichever cell happens to be first.
   table(state, node) {
-    const rows = []
-    node.forEach((row) => {
-      const cells = []
-      row.forEach((cell) => cells.push({ text: renderCell(cell), align: cell.attrs.align }))
-      rows.push(cells)
-    })
-    if (!rows.length) return
+    const grid = gfmGrid(node)
+    if (!grid.height || !grid.width) return
 
-    const cols = rows.reduce((n, r) => Math.max(n, r.length), 0)
-    const cell = (r, i) => (r[i] ? r[i].text : '')
-    const line = (r) => '| ' + Array.from({ length: cols }, (_, i) => cell(r, i)).join(' | ') + ' |'
+    const line = (row) => '| ' + row.map((c) => (c ? renderCell(c) : '')).join(' | ') + ' |'
 
-    state.write(line(rows[0])); state.ensureNewLine()
-    state.write('| ' + Array.from({ length: cols }, (_, i) =>
-      RULE[(rows[0][i] && rows[0][i].align) || null]).join(' | ') + ' |')
+    state.write(line(grid.cells[0])); state.ensureNewLine()
+    state.write('| ' + grid.aligns.map((a) => RULE[a || null]).join(' | ') + ' |')
     state.ensureNewLine()
-    for (const row of rows.slice(1)) { state.write(line(row)); state.ensureNewLine() }
+    for (const row of grid.cells.slice(1)) { state.write(line(row)); state.ensureNewLine() }
     state.closeBlock(node)
   },
 

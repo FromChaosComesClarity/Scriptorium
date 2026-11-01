@@ -255,6 +255,41 @@
 .topbar button.on { color: var(--accent); border-color: var(--accent); }
 .topbar button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
+/* The table menu: LatteWrite's size grid and row/column list, in Scriptorium's
+   toolbar idiom. It sits inside the macOS drag region, which swallows clicks,
+   hence the explicit no-drag; the scrim behind it closes it on any click away. */
+.topbar .tablewrap { position: relative; }
+.tablemenu {
+  position: absolute; top: calc(100% + 0.35rem); left: 0; z-index: 300;
+  display: flex; flex-direction: column; padding: 0.3rem;
+  background: var(--surface); border: 1px solid var(--rule); border-radius: 10px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+  -webkit-app-region: no-drag;
+}
+.topbar .tablemenu button {
+  justify-content: flex-start; width: 100%; height: 1.8rem;
+  padding: 0 0.55rem; color: var(--text); white-space: nowrap;
+}
+.topbar .tablemenu button:hover:not(:disabled) {
+  border-color: transparent; background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+.topbar .tablemenu button:disabled:hover { border-color: transparent; }
+.topbar .tablemenu button.danger:not(:disabled) { color: #e0685f; }
+.topbar .tablemenu button.danger:hover:not(:disabled) { background: #e0685f; color: #fff; }
+.tablemenu .menu-sep { height: 1px; background: var(--rule); margin: 0.3rem 0.2rem; }
+.tablemenu .grid-label {
+  font-size: 0.72rem; color: var(--muted); text-align: center;
+  padding: 0.2rem 0 0.4rem; letter-spacing: 0.04em; font-variant-numeric: tabular-nums;
+}
+.tablemenu .grid-pick { display: flex; flex-direction: column; gap: 3px; padding: 0.1rem 0.3rem 0.3rem; }
+.tablemenu .grid-row { display: flex; gap: 3px; }
+.tablemenu .grid-cell {
+  width: 17px; height: 17px; border: 1px solid var(--rule); border-radius: 3px;
+  background: var(--bg); cursor: pointer;
+}
+.tablemenu .grid-cell.hot { background: var(--accent); border-color: var(--accent); }
+.menu-scrim { position: fixed; inset: 0; z-index: 250; }
+
 /* ── sign in ──────────────────────────────────────────────────────────────── */
 .signin {
   height: 100%;

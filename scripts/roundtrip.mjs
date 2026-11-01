@@ -12,9 +12,24 @@
 //   3. IDEMPOTENCE    the round trip reaches a fixed point after one pass. The
 //                     first pass may normalise; every pass after it must not
 //                     change a single byte, or notes drift forever.
+//   4. TABLE EDITING  every row and column command the toolbar offers leaves a
+//                     table that saves exactly as it looks.
 
 import { fromMarkdown, toMarkdown, schema, hasEdits } from '../src/shared/markdown.mjs'
-import { ALLOWED_NODES, ALLOWED_MARKS } from '../src/shared/schema.mjs'
+import { ALLOWED_NODES, ALLOWED_MARKS, gfmTablesFix, markdownExtensions } from '../src/shared/schema.mjs'
+import { getSchema } from '@tiptap/core'
+import Placeholder from '@tiptap/extension-placeholder'
+import { EditorState, TextSelection } from '@tiptap/pm/state'
+import * as tables from '@tiptap/pm/tables'
+
+// The app never saves a document built from markdown.mjs's schema. The editor
+// builds its OWN Schema instance from the same extensions (plus Placeholder and
+// Find), and ProseMirror compares node types by identity, not by name. A test
+// that only ever serialised docs from the module's schema passed while the app
+// was emptying every table cell on save. So every save below goes through a
+// schema built the way Editor.svelte builds it.
+const editorSchema = getSchema([...markdownExtensions, Placeholder])
+const asEditorDoc = (doc) => editorSchema.nodeFromJSON(doc.toJSON())
 
 let failures = 0
 let normalised = 0
@@ -243,6 +258,15 @@ for (const c of cases) {
     continue
   }
 
+  // The save the app actually performs: same document, the editor's schema.
+  let fromEditor
+  try { fromEditor = toMarkdown(asEditorDoc(doc)) } catch (e) { fromEditor = `threw: ${e.message}` }
+  if (fromEditor !== pass1) {
+    fail(c.name, 'SAVED FROM THE EDITOR DIFFERENTLY: the app would write this instead\n' +
+      `expected: ${JSON.stringify(pass1)}\nthe app:  ${JSON.stringify(fromEditor)}`)
+    continue
+  }
+
   if (pass1 !== pass2) {
     fail(c.name, 'NOT IDEMPOTENT: the note would drift on every save\n' +
       `pass 1: ${JSON.stringify(pass1)}\npass 2: ${JSON.stringify(pass2)}`)
@@ -285,6 +309,129 @@ console.log('\nNO-EDIT GUARANTEE')
   const edited = fromMarkdown('# Title\n\nbody, changed')
   if (!hasEdits(original, edited)) fail('a real edit is detected', 'hasEdits returned false for a changed document')
   else console.log(`  ${green('ok')}   a genuine change is still detected as an edit`)
+}
+
+// ── 4. table editing ────────────────────────────────────────────────────────
+// The toolbar adds and removes rows and columns with prosemirror-tables'
+// commands. Run each one on a real note table, then let the GFM normaliser do
+// what its appendTransaction does in the app, and hold the result to the only
+// standard that matters: the table on screen IS the table that reloading the
+// saved Markdown produces. Anything less and the note changes under the user
+// between one open and the next.
+console.log('\nTABLE EDITING')
+{
+  const md = '| Left | Middle | Right |\n| :--- | :---: | ---: |\n| a | b | c |\n| d | e | f |'
+
+  // A caret inside the cell at (row, col).
+  function caret(doc, row, col) {
+    let found = null
+    doc.descendants((node, pos) => {
+      if (node.type.name !== 'table') return true
+      node.forEach((r, rOff, ri) => r.forEach((_c, cOff, ci) => {
+        if (ri === row && ci === col) found = pos + 1 + rOff + 1 + cOff + 2
+      }))
+      return false
+    })
+    return found
+  }
+
+  function settle(state) {
+    const fix = gfmTablesFix(state)
+    return fix ? state.apply(fix) : state
+  }
+
+  function edit(source, row, col, command) {
+    let state = EditorState.create({ schema: editorSchema, doc: asEditorDoc(fromMarkdown(source)) })
+    state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, caret(state.doc, row, col))))
+    const ran = command(state, (tr) => { state = settle(state.apply(tr)) })
+    return { ran, doc: state.doc }
+  }
+
+  const tableOf = (doc) => { let t = null; doc.descendants((n) => { if (n.type.name === 'table') t = n; return !t }); return t }
+  const shape = (doc) => {
+    const t = tableOf(doc)
+    const rows = []
+    t.forEach((r) => { const cells = []; r.forEach((c) => cells.push(`${c.type.name === 'tableHeader' ? 'H' : 'C'}:${c.attrs.align || '-'}:${c.textContent}`)); rows.push(cells.join(' ')) })
+    return rows.join('\n')
+  }
+
+  const ops = [
+    { name: 'add row below a body row', at: [2, 1], cmd: tables.addRowAfter, rows: 4, aligns: 'left,center,right' },
+    { name: 'add row below the header', at: [0, 1], cmd: tables.addRowAfter, rows: 4, aligns: 'left,center,right' },
+    { name: 'add row ABOVE the header keeps alignment', at: [0, 1], cmd: tables.addRowBefore, rows: 4, aligns: 'left,center,right' },
+    { name: 'add column right', at: [1, 1], cmd: tables.addColumnAfter, cols: 4, aligns: 'left,center,-,right' },
+    { name: 'add column left of the first', at: [1, 0], cmd: tables.addColumnBefore, cols: 4, aligns: '-,left,center,right' },
+    { name: 'delete a body row', at: [1, 0], cmd: tables.deleteRow, rows: 2, aligns: 'left,center,right' },
+    { name: 'delete the header row', at: [0, 0], cmd: tables.deleteRow, rows: 2, aligns: 'left,center,right' },
+    { name: 'delete a column', at: [1, 1], cmd: tables.deleteColumn, cols: 2, aligns: 'left,right' }
+  ]
+
+  for (const op of ops) {
+    const { ran, doc } = edit(md, op.at[0], op.at[1], op.cmd)
+    if (!ran) { fail(op.name, 'the command did not run'); continue }
+
+    const saved = toMarkdown(doc)
+    const reloaded = fromMarkdown(saved)
+    const t = tableOf(reloaded)
+    const problems = []
+
+    if (toMarkdown(reloaded) !== saved) problems.push('NOT IDEMPOTENT\n' + saved + '\n---\n' + toMarkdown(reloaded))
+    if (op.rows && t.childCount !== op.rows) problems.push(`expected ${op.rows} rows, got ${t.childCount}`)
+    if (op.cols && t.firstChild.childCount !== op.cols) problems.push(`expected ${op.cols} columns, got ${t.firstChild.childCount}`)
+    const aligns = []; t.firstChild.forEach((c) => aligns.push(c.attrs.align || '-'))
+    if (aligns.join(',') !== op.aligns) problems.push(`column alignment ${aligns.join(',')}, wanted ${op.aligns}`)
+    const lost = ['Left', 'Middle', 'Right', 'a', 'b', 'c', 'd', 'e', 'f'].filter((w) => !new RegExp(`\\| ${w} \\|`).test(saved))
+    const deleted = { 'delete a body row': ['a', 'b', 'c'], 'delete the header row': ['Left', 'Middle', 'Right'], 'delete a column': ['Middle', 'b', 'e'] }[op.name] || []
+    const missing = lost.filter((w) => !deleted.includes(w))
+    if (missing.length) problems.push(`cell text lost on save: ${missing.join(', ')}\n${saved}`)
+    if (shape(doc) !== shape(reloaded)) problems.push('ON SCREEN differs from what reloads:\n' + shape(doc) + '\n--- reloads as ---\n' + shape(reloaded))
+
+    if (problems.length) fail(op.name, problems.join('\n'))
+    else console.log(`  ${green('ok')}   ${op.name}`)
+  }
+
+  // The last row and the last column cannot be deleted: prosemirror-tables
+  // refuses rather than leaving a table with nothing in it. The toolbar greys
+  // those entries out on the same `can()` check, so assert the refusal holds.
+  {
+    const one = '| only |\n| --- |'
+    const row = edit(one, 0, 0, tables.deleteRow)
+    const col = edit(one, 0, 0, tables.deleteColumn)
+    if (row.ran || col.ran) fail('the last row or column cannot be deleted', `deleteRow ran: ${row.ran}, deleteColumn ran: ${col.ran}`)
+    else console.log(`  ${green('ok')}   the last row and column refuse to be deleted`)
+  }
+
+  // Merged cells can only arrive by paste, but they must not scramble columns.
+  {
+    const S = editorSchema
+    const p = (t) => S.nodes.paragraph.create(null, t ? S.text(t) : null)
+    const H = (t) => S.nodes.tableHeader.create(null, p(t))
+    const C = (t, a = {}) => S.nodes.tableCell.create(a, p(t))
+    const R = (...c) => S.nodes.tableRow.create(null, c)
+    const doc = S.nodes.doc.create(null, S.nodes.table.create(null, [
+      R(H('A'), H('B'), H('C')),
+      R(C('wide', { colspan: 2 }), C('c1')),
+      R(C('tall', { rowspan: 2 }), C('b2'), C('c2')),
+      R(C('b3'), C('c3'))
+    ]))
+    const want = '| A | B | C |\n| --- | --- | --- |\n| wide |  | c1 |\n| tall | b2 | c2 |\n|  | b3 | c3 |'
+    const got = toMarkdown(doc).trim()
+    if (got !== want) fail('merged cells keep their columns', `got:\n${got}\nwanted:\n${want}`)
+    else console.log(`  ${green('ok')}   merged cells save with every value in its own column`)
+
+    const settled = settle(EditorState.create({ schema: S, doc }))
+    if (shape(settled.doc) !== shape(fromMarkdown(got))) {
+      fail('a pasted merged table is unmerged on screen', shape(settled.doc) + '\n--- reloads as ---\n' + shape(fromMarkdown(got)))
+    } else console.log(`  ${green('ok')}   a pasted merged table is shown unmerged, as it will save`)
+  }
+
+  // A note's own tables are already in GFM shape, so opening one must not make
+  // the normaliser touch it. If it did, every table note would look edited.
+  {
+    const state = EditorState.create({ schema: editorSchema, doc: asEditorDoc(fromMarkdown(md + '\n\ntext\n\n| x |\n| --- |\n| y |')) })
+    if (gfmTablesFix(state)) fail('opening a table note changes nothing', 'the normaliser rewrote a freshly parsed table')
+    else console.log(`  ${green('ok')}   a freshly opened table note is left untouched`)
+  }
 }
 
 // ── verdict ─────────────────────────────────────────────────────────────────
